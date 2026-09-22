@@ -949,7 +949,9 @@ function updateIntro(dt) {
   cam.zoom = Math.exp(lerp(Math.log(5), Math.log(minZoom()), e));
   cam.x = lerp(intro.sx, WORLD.w / 2, e); cam.y = lerp(intro.sy, WORLD.h / 2, e);
   clampCam(cam); Object.assign(camT, cam);
-  const n = prog >= 1 ? N : Math.max(1, visibleCount);
+  // the count only ever climbs: the view can drift off a dense patch while panning, which would make it dip
+  intro.seen = Math.max(intro.seen || 1, visibleCount);
+  const n = prog >= 1 ? N : intro.seen;
   $('bignum-n').textContent = fmtNum(n); $('bignum-label').textContent = n === 1 ? 'puppy' : 'puppies';
   if (prog > 0.05) $('card').classList.add('hidden');
   if (prog >= 1) {
