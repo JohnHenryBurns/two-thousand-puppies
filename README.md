@@ -3,6 +3,7 @@
 **▶ Play it here: https://johnhenryburns.github.io/two-thousand-puppies/**
 
 A little browser game to celebrate a kid's 2,000th day alive: one puppy for every day.
+(Any number of days up to about 7 years works, see `days` below.)
 
 Zoomed out, all 2,000 puppies are tiny particles you can shoo around with a finger or mouse.
 Zoomed in, you can pet them, give them treats, throw a ball, and call them over.
@@ -36,7 +37,11 @@ https://johnhenryburns.github.io/two-thousand-puppies/?name=Lily&birthday=2021-0
 
 - `name`: shown in the title, the intro, and the "Spell my name" formation.
 - `birthday`: `YYYY-MM-DD`. Puppy #n is dated `birthday + (n - 1)` days, so puppy #2000 is day 2,000.
-  If unset, the game assumes today is day 2,000.
+  If unset, the game assumes today is the last day.
+- `days`: how many days to celebrate, which is how many puppies there are. Defaults to 2000.
+  Any number from 10 to 2600 (about 7 years) works, so a friend's kid can get `?name=Ada&days=1846`.
+  Every bit of text, the intro count, the "Count by 100s" formation, and the milestones follow it,
+  and petting progress is saved separately per number.
 - `intro=0`: skip the title screen. Optional `zoom`, `x`, `y` set the starting camera.
 
 ## Files

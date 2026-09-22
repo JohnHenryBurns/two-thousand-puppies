@@ -17,7 +17,7 @@
 <div id="hud">
   <div id="topbar">
     <div id="title">🐶 2000 Puppies</div>
-    <div id="counter">Petted <b id="petcount">0</b> of 2000</div>
+    <div id="counter">Petted <b id="petcount">0</b> of <span class="n-plain">2000</span></div>
     <div id="bar"><div id="barfill"></div></div>
   </div>
 
@@ -38,7 +38,7 @@
     <div class="group">
       <button id="btn-zoomout" title="Zoom out"><span>➖</span><small>Zoom</small></button>
       <button id="btn-zoomin" title="Zoom in"><span>➕</span><small>Zoom</small></button>
-      <button id="btn-all" title="See all 2000"><span>🌍</span><small>All</small></button>
+      <button id="btn-all" title="See all the puppies"><span>🌍</span><small>All</small></button>
     </div>
     <div class="group">
       <button id="btn-sound" title="Sound on/off"><span id="sound-icon">🔊</span><small>Sound</small></button>
@@ -59,16 +59,17 @@
 <div id="intro" class="overlay">
   <div class="panel">
     <div class="paws">🐶🐕🐩</div>
-    <h1>2000 Puppies!</h1>
+    <h1><span class="n-plain">2000</span> Puppies!</h1>
     <div class="for-line">for <input id="name-input" type="text" maxlength="14" placeholder="your name" autocomplete="off"></div>
-    <p class="big">You have been alive for <b>2,000 days</b>.<br>That is a LOT of days!</p>
-    <p>So here are <b>2,000 puppies</b>. One for every single day. Every puppy has a name, and every puppy is yours.</p>
+    <p class="big">You have been alive for <b><span class="n">2,000</span> days</b>.<br>That is a LOT of days!</p>
+    <p>So here are <b><span class="n">2,000</span> puppies</b>. One for every single day. Every puppy has a name, and every puppy is yours.</p>
     <p id="intro-days" class="days"></p>
     <button id="btn-start" class="primary">Meet the puppies! 🐾</button>
     <details class="parents">
       <summary>For grown-ups</summary>
       <label>Birthday <input id="bday-input" type="date"></label>
-      <p>The puppies are numbered by day: puppy #1 is the day she was born, puppy #2000 is day 2,000. Set the birthday so each puppy shows its real date. Name and birthday are saved on this device.</p>
+      <label>Days to celebrate <input id="days-input" type="number" min="10" max="2600" step="1"></label>
+      <p>The puppies are numbered by day: puppy #1 is the day she was born, puppy #<span class="n-plain">2000</span> is day <span class="n">2,000</span>. Set the birthday so each puppy shows its real date. For a friend who is a different number of days old, change the days (up to 2,600, about 7 years) and the page reloads with that many puppies. Everything is saved on this device, and a link like <code>?name=Ada&amp;birthday=2021-04-02&amp;days=1846</code> works too.</p>
     </details>
   </div>
 </div>
@@ -83,14 +84,14 @@
       <li><b>📣 Call</b>: press and hold, and the puppies come running.</li>
       <li><b>🦴 Treat</b>: tap to drop a treat. Somebody will eat it!</li>
       <li><b>🎾 Ball</b>: tap to throw. A puppy will fetch it back to you.</li>
-      <li><b>✨ Surprise</b>: watch all 2,000 puppies make a shape.</li>
-      <li>The little map in the corner shows all 2,000 puppies. Tap it to jump there.</li>
+      <li><b>✨ Surprise</b>: watch all <span class="n">2,000</span> puppies make a shape.</li>
+      <li>The little map in the corner shows all <span class="n">2,000</span> puppies. Tap it to jump there.</li>
     </ul>
-    <h3>How big is 2,000?</h3>
+    <h3>How big is <span class="n">2,000</span>?</h3>
     <ul>
-      <li>If you pet one puppy every second and never stop, it takes <b>33 minutes</b> to pet them all.</li>
-      <li>2,000 puppies nose to tail would be as long as <b>8 football fields</b>.</li>
-      <li>2,000 days is <b>more than 5 years</b>. And you lived every one of them!</li>
+      <li>If you pet one puppy every second and never stop, it takes <b id="fact-time">33 minutes</b> to pet them all.</li>
+      <li><span class="n">2,000</span> puppies nose to tail would be as long as <b id="fact-fields">8 football fields</b>.</li>
+      <li><span class="n">2,000</span> days is <b id="fact-years">more than 5 years</b>. And you lived every one of them!</li>
     </ul>
     <p id="help-stats"></p>
     <div class="row">

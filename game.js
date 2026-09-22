@@ -1,7 +1,8 @@
 'use strict';
 (function () {
 // ============================================================ CONFIG
-const N = 2000;
+let N = 2000;                 // number of days = number of puppies; set from ?days= in SETTINGS below
+const MAX_DAYS = 2600;        // about 7 years; the field is sized for this many
 const WORLD = { w: 3000, h: 2000 };
 const MARGIN = 30;            // puppies keep this far from the fence
 const PET_ZOOM = 1.6;         // at this zoom the hand pets instead of shoos
@@ -65,8 +66,11 @@ function ageParts(a, b) {
 
 // ============================================================ SETTINGS
 const params = new URLSearchParams(location.search);
+// ?days=1846 celebrates a different number of days (one puppy each). Also settable on the title screen.
+N = clamp(parseInt(params.get('days') || store.get('days', '2000'), 10) || 2000, 10, MAX_DAYS);
+const KEY = N === 2000 ? '' : '.' + N;   // progress is saved per puppy count, so two kids' links don't mix on one device
 let kidName = (params.get('name') || store.get('name', '')).trim();
-let birthday = parseDate(params.get('birthday')) || parseDate(store.get('bday', '')) || new Date(todayUTC().getTime() - 1999 * DAY_MS);
+let birthday = parseDate(params.get('birthday')) || parseDate(store.get('bday', '')) || new Date(todayUTC().getTime() - (N - 1) * DAY_MS);
 const dayDate = n => new Date(birthday.getTime() + (n - 1) * DAY_MS);
 
 // ============================================================ NAMES & LOOKS
@@ -261,7 +265,7 @@ function makeFlowerSprites(cols) {
 const puppies = new Array(N);
 const shuffledNames = shuffle(NAMES.slice(), mulberry32(20000));
 function makePuppies() {
-  const pettedStr = store.get('petted', '');
+  const pettedStr = store.get('petted' + KEY, '');
   for (let i = 0; i < N; i++) {
     const r = mulberry32(1000 + i * 7919);
     puppies[i] = {
@@ -277,7 +281,7 @@ function makePuppies() {
     p.r = 13 * p.size;
   }
 }
-function savePetted() { let s = ''; for (let i = 0; i < N; i++) s += puppies[i].petted ? '1' : '0'; store.set('petted', s); }
+function savePetted() { let s = ''; for (let i = 0; i < N; i++) s += puppies[i].petted ? '1' : '0'; store.set('petted' + KEY, s); }
 
 // ============================================================ SPATIAL HASH
 const GW = Math.ceil(WORLD.w / CELL) + 1, GH = Math.ceil(WORLD.h / CELL) + 1;
@@ -373,8 +377,8 @@ function playerPos() { return toWorld(W / 2, H - HUD_BOTTOM - 70); }
 
 // ============================================================ GAME STATE
 let stats = { treats: 0, throws: 0, fetches: 0 };
-try { Object.assign(stats, JSON.parse(store.get('stats', '{}'))); } catch (e) { }
-function saveStats() { store.set('stats', JSON.stringify(stats)); }
+try { Object.assign(stats, JSON.parse(store.get('stats' + KEY, '{}'))); } catch (e) { }
+function saveStats() { store.set('stats' + KEY, JSON.stringify(stats)); }
 let pettedCount = 0;
 let tool = 'hand';
 let formation = null;          // { kind, labels }
@@ -624,7 +628,7 @@ function shapePoints(kind) {
     }
     g.closePath(); g.fill();
   } else {
-    const lines = kind === 'name' && kidName ? [kidName.toUpperCase(), '2000'] : ['2000'];
+    const lines = kind === 'name' && kidName ? [kidName.toUpperCase(), String(N)] : [String(N)];
     const fam = "700 100px Fredoka, 'Arial Black', Impact, sans-serif";
     g.font = fam;
     let maxW = 1; lines.forEach(l => { maxW = Math.max(maxW, g.measureText(l).width); });
@@ -651,13 +655,23 @@ function shapePoints(kind) {
   return pts;
 }
 function countPoints() {
+  // blocks of 100 (10 x 10), the last one partial, labelled 100, 200, ... up to N
   const pts = [], labels = [], sp = 28, bw = 9 * sp;
-  const gapX = (WORLD.w - 5 * bw) / 6, gapY = (WORLD.h - 4 * bw) / 5;
-  for (let b = 0; b < 20; b++) {
-    const col = b % 5, row = (b / 5) | 0;
+  const nBlocks = Math.ceil(N / 100);
+  // column count: fewest empty slots on the last row, then closest to the field's 3:2 shape
+  let cols = 1, best = Infinity;
+  for (let c = Math.min(nBlocks, 3); c <= Math.min(nBlocks, 7); c++) {
+    const rows = Math.ceil(nBlocks / c), score = (c * rows - nBlocks) * 10 + Math.abs(c / rows - 1.5);
+    if (score < best) { best = score; cols = c; }
+  }
+  const rows = Math.ceil(nBlocks / cols);
+  const gapX = (WORLD.w - cols * bw) / (cols + 1), gapY = (WORLD.h - rows * bw) / (rows + 1);
+  for (let b = 0; b < nBlocks; b++) {
+    const col = b % cols, row = (b / cols) | 0;
     const x0 = gapX + col * (bw + gapX), y0 = gapY + 24 + row * (bw + gapY);
-    for (let r = 0; r < 10; r++) for (let c = 0; c < 10; c++) pts.push([x0 + c * sp, y0 + r * sp]);
-    labels.push({ x: x0 + bw / 2, y: y0 - 34, text: String((b + 1) * 100) });
+    const inBlock = Math.min(100, N - b * 100);
+    for (let k = 0; k < inBlock; k++) pts.push([x0 + (k % 10) * sp, y0 + ((k / 10) | 0) * sp]);
+    labels.push({ x: x0 + bw / 2, y: y0 - 34, text: String(Math.min((b + 1) * 100, N)) });
   }
   return { pts, labels };
 }
@@ -867,7 +881,7 @@ $('btn-replay').addEventListener('click', () => { $('help').classList.add('hidde
 $('btn-reset').addEventListener('click', () => {
   if (!confirm('Reset all petting progress? (Name and birthday are kept.)')) return;
   for (const p of puppies) p.petted = false;
-  pettedCount = 0; stats = { treats: 0, throws: 0, fetches: 0 }; store.del('petted'); saveStats(); updateCounter();
+  pettedCount = 0; stats = { treats: 0, throws: 0, fetches: 0 }; store.del('petted' + KEY); saveStats(); updateCounter();
   $('help').classList.add('hidden');
 });
 function updateCounter() {
@@ -892,32 +906,51 @@ function showToast(msg, ms) {
 const MILESTONES = { 10: 'Ten puppies petted! 🎉', 25: '25 puppies! Keep going!', 50: 'FIFTY puppies petted! 🐾', 100: 'ONE HUNDRED puppies! 🎉🎉',
   200: '200 puppies! Wow!', 300: '300! You are a puppy expert!', 400: '400 puppies petted!', 500: 'FIVE HUNDRED! That is a lot of puppies! 🎈',
   750: '750! Three quarters of the way to 1,000!', 1000: 'ONE THOUSAND PUPPIES! 🎆 Halfway there!', 1250: '1,250 puppies petted!',
-  1500: '1,500! Only 500 puppies are still waiting!', 1750: '1,750! Almost every puppy!', 2000: 'ALL 2,000 PUPPIES! 🎆🎉 Every single one loves you!' };
+  1500: '1,500! Only 500 puppies are still waiting!', 1750: '1,750! Almost every puppy!', 2000: 'TWO THOUSAND puppies petted! 🎆', 2500: '2,500 puppies petted! 🎆' };
 function checkMilestone() {
-  const m = MILESTONES[pettedCount]; if (!m) return;
-  showToast(m, pettedCount >= 1000 ? 6000 : 3500);
+  const all = pettedCount === N;
+  const m = all ? 'ALL ' + fmtNum(N) + ' PUPPIES! 🎆🎉 Every single one loves you!' : MILESTONES[pettedCount];
+  if (!m) return;
+  showToast(m, all || pettedCount >= 1000 ? 6000 : 3500);
   burstConfetti(W / 2, H * 0.4, 120, 500);
-  if (pettedCount === 2000) { sfx.fanfare(); fireworksUntil = now + 12; setTimeout(() => startFormation('heart'), 800); }
+  if (all) { sfx.fanfare(); fireworksUntil = now + 12; setTimeout(() => startFormation('heart'), 800); }
   else sfx.chime();
 }
 
 // ============================================================ INTRO
 function refreshIntroText() {
-  const day2000 = dayDate(2000), a = ageParts(birthday, day2000);
+  const lastDay = dayDate(N), a = ageParts(birthday, lastDay);
   const parts = [];
   if (a.y) parts.push(a.y + (a.y === 1 ? ' year' : ' years'));
   if (a.m) parts.push(a.m + (a.m === 1 ? ' month' : ' months'));
   parts.push(a.d + (a.d === 1 ? ' day' : ' days'));
   const age = parts.length > 1 ? parts.slice(0, -1).join(', ') + ' and ' + parts[parts.length - 1] : parts[0];
-  $('intro-days').textContent = 'Day 2,000 is ' + fmtDate(day2000) + '. That is ' + age + '!';
-  $('title').textContent = '🐶 2000 Puppies' + (kidName ? ' for ' + kidName : '');
-  $('form-name').textContent = kidName ? '✨ Spell "' + kidName + '"' : '✨ Make a big 2000';
-  document.title = kidName ? '2000 Puppies for ' + kidName + '!' : '2000 Puppies!';
+  $('intro-days').textContent = 'Day ' + fmtNum(N) + ' is ' + fmtDate(lastDay) + '. That is ' + age + '!';
+  $('title').textContent = '🐶 ' + N + ' Puppies' + (kidName ? ' for ' + kidName : '');
+  $('form-name').textContent = kidName ? '✨ Spell "' + kidName + '"' : '✨ Make a big ' + N;
+  document.title = kidName ? N + ' Puppies for ' + kidName + '!' : N + ' Puppies!';
+  // every "2,000" in the page text follows the chosen number of days
+  document.querySelectorAll('.n').forEach(e => { e.textContent = fmtNum(N); });
+  document.querySelectorAll('.n-plain').forEach(e => { e.textContent = String(N); });
+  $('fact-time').textContent = N >= 120 ? Math.round(N / 60) + ' minutes' : N + ' seconds';
+  const fields = Math.max(1, Math.round(N * 0.4 / 100));
+  $('fact-fields').textContent = fields + (fields === 1 ? ' football field' : ' football fields');
+  const years = Math.floor(N / 365.25), months = Math.floor(N / 30.44);
+  $('fact-years').textContent = years >= 1 ? 'more than ' + years + (years === 1 ? ' year' : ' years') : months >= 2 ? 'more than ' + months + ' months' : 'a lot of days';
 }
 $('name-input').value = kidName;
 $('bday-input').value = ymd(birthday);
 $('name-input').addEventListener('input', () => { kidName = $('name-input').value.trim(); store.set('name', kidName); refreshIntroText(); });
 $('bday-input').addEventListener('change', () => { const d = parseDate($('bday-input').value); if (d) { birthday = d; store.set('bday', ymd(d)); refreshIntroText(); } });
+$('days-input').value = N;
+$('days-input').addEventListener('change', () => {
+  // the puppy count is baked into everything, so changing it reloads the page with ?days=
+  const d = clamp(parseInt($('days-input').value, 10) || N, 10, MAX_DAYS);
+  $('days-input').value = d;
+  if (d === N) return;
+  store.set('days', String(d));
+  const u = new URL(location.href); u.searchParams.set('days', String(d)); location.href = u.toString();
+});
 $('btn-start').addEventListener('click', () => {
   sfx.unlock();
   kidName = $('name-input').value.trim(); store.set('name', kidName); refreshIntroText();
