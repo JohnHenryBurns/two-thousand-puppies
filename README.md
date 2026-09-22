@@ -1,5 +1,7 @@
 # 🐶 2000 Puppies
 
+**▶ Play it here: https://johnhenryburns.github.io/two-thousand-puppies/**
+
 A little browser game to celebrate a kid's 2,000th day alive: one puppy for every day.
 
 Zoomed out, all 2,000 puppies are tiny particles you can shoo around with a finger or mouse.
@@ -11,7 +13,7 @@ Plain HTML, CSS and JavaScript. No build step, no dependencies beyond a Google F
 
 ## Play
 
-Open `index.html` in a browser, or visit the GitHub Pages site for this repo.
+Visit [johnhenryburns.github.io/two-thousand-puppies](https://johnhenryburns.github.io/two-thousand-puppies/), or open `index.html` in a browser.
 
 - **✋ Hand**: far away, wave through the crowd to shoo. Up close, tap a puppy to pet it.
 - **📣 Call**: press and hold, and the nearby puppies come running.
@@ -29,7 +31,7 @@ Both are saved in the browser. You can also set them in the URL, which is handy 
 you send to a tablet:
 
 ```
-https://<user>.github.io/two-thousand-puppies/?name=Lily&birthday=2021-04-02
+https://johnhenryburns.github.io/two-thousand-puppies/?name=Lily&birthday=2021-04-02
 ```
 
 - `name`: shown in the title, the intro, and the "Spell my name" formation.
