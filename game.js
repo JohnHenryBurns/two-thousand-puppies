@@ -281,7 +281,7 @@ function makePuppies() {
       look: 0, size: 1, name: shuffledNames[i % shuffledNames.length],
       collar: COLLARS[(r() * COLLARS.length) | 0], facing: r() < 0.5 ? 1 : -1,
       state: 'idle', t: r() * 4, tx: 0, ty: 0, obj: null, petted: pettedStr[i] === '1',
-      anim: r() * 10, wag: r() * TAU, idlePose: r() < 0.4 ? 'sit' : 'stand', lastPet: -9, fx: 0, fy: 0
+      anim: r() * 10, wag: r() * TAU, idlePose: r() < 0.4 ? 'sit' : 'stand', lastPet: -9, fx: 0, fy: 0, px: 0, py: 0
     };
     const p = puppies[i];
     p.look = (r() * LOOKS.length) | 0;
@@ -313,7 +313,12 @@ function eachNear(x, y, r, fn) {
 }
 // how easily a puppy gets nudged aside: sleepers don't budge, sitting ones barely do
 function mobility(p) { return p.state === 'sleep' ? 0 : (p.state === 'idle' || p.state === 'eat' || p.state === 'happy') ? 0.25 : 1; }
+// Puppies like a little breathing room: every neighbour closer than COMFORT adds "crowd pressure" (p.px, p.py)
+// pointing away from it. Idle puppies that feel too much of it get up and walk off, walking puppies steer by it.
+// That is how a called-in pile loosens up again, from the outside in.
+const COMFORT = 44, COMFORT2 = COMFORT * COMFORT, CROWD = 150;
 function separate() {
+  for (let i = 0; i < N; i++) { puppies[i].px = 0; puppies[i].py = 0; }
   for (let i = 0; i < N; i++) {
     const p = puppies[i];
     const mp = mobility(p);
@@ -325,15 +330,19 @@ function separate() {
           if (j > i) {
             const q = puppies[j];
             let dx = q.x - p.x, dy = q.y - p.y;
-            const min = p.r + q.r;
             let d2 = dx * dx + dy * dy;
-            if (d2 < min * min) {
+            if (d2 < COMFORT2) {
               if (d2 < 0.01) { dx = rnd(-1, 1); dy = rnd(-1, 1); d2 = dx * dx + dy * dy; }
-              const d = Math.sqrt(d2), push = (min - d) * 0.5;
-              const nx = dx / d, ny = dy / d;
-              const mq = mobility(q), ms = mp + mq;
-              const fp = ms > 0 ? mp / ms : 0.5, fq = ms > 0 ? mq / ms : 0.5;
-              p.x -= nx * push * fp; p.y -= ny * push * fp; q.x += nx * push * fq; q.y += ny * push * fq;
+              const d = Math.sqrt(d2), nx = dx / d, ny = dy / d;
+              const f = 1 - d / COMFORT, g = CROWD * f * f;
+              p.px -= nx * g; p.py -= ny * g; q.px += nx * g; q.py += ny * g;
+              const min = p.r + q.r;
+              if (d < min) {   // actually overlapping: push apart, heavier one moves less
+                const push = (min - d) * 0.5;
+                const mq = mobility(q), ms = mp + mq;
+                const fp = ms > 0 ? mp / ms : 0.5, fq = ms > 0 ? mq / ms : 0.5;
+                p.x -= nx * push * fp; p.y -= ny * push * fp; q.x += nx * push * fq; q.y += ny * push * fq;
+              }
             }
           }
           j = nxt[j];
@@ -395,6 +404,7 @@ const ball = { active: false, x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, state: 'res
 const parts = [];              // world-space particles
 const confetti = [];           // screen-space particles
 const callPoint = { type: 'point', x: 0, y: 0 };
+let calling = false;           // true while the Call tool is held: crowd pressure is ignored so the pile can form
 let intro = null;
 let visibleCount = 0;
 let now = 0;
@@ -412,8 +422,10 @@ function toIdle(p, t) {
   if (formation) { p.state = 'form'; return; }
   p.state = 'idle'; p.t = t !== undefined ? t : rnd(1, 5); p.idlePose = Math.random() < 0.4 ? 'sit' : 'stand';
 }
-function pickWander(p) {
-  const a = Math.random() * TAU, d = rnd(30, 140);
+function pickWander(p, awayX, awayY) {
+  // with a direction given (crowd pressure), head roughly that way and a bit further than usual
+  const a = awayX !== undefined ? Math.atan2(awayY, awayX) + rnd(-0.6, 0.6) : Math.random() * TAU;
+  const d = awayX !== undefined ? rnd(60, 180) : rnd(30, 140);
   p.tx = clamp(p.x + Math.cos(a) * d, MARGIN, WORLD.w - MARGIN);
   p.ty = clamp(p.y + Math.sin(a) * d, MARGIN, WORLD.h - MARGIN);
   p.state = 'wander'; p.t = 6;
@@ -422,6 +434,7 @@ function updatePuppy(p, dt) {
   switch (p.state) {
     case 'idle':
       p.t -= dt; damp(p, 8, dt);
+      if (!calling && p.px * p.px + p.py * p.py > 40 * 40) { pickWander(p, p.px, p.py); break; }   // too crowded here
       if (p.t <= 0) {
         if (Math.random() < 0.06 && now - p.lastPet > 10) { p.state = 'sleep'; p.t = rnd(6, 16); p.vx = p.vy = 0; }
         else pickWander(p);
@@ -432,6 +445,7 @@ function updatePuppy(p, dt) {
       if (d < 6) { toIdle(p); break; }
       const sp = 34 + p.size * 12;
       steer(p, dx / d * sp, dy / d * sp, 4, dt);
+      if (!calling) { p.vx += p.px * dt; p.vy += p.py * dt; }   // drift away from crowds on the way
       p.t -= dt; if (p.t <= 0) toIdle(p);
       break;
     }
@@ -1207,7 +1221,8 @@ function frame(t) {
     shoo(w.x, w.y, SHOO_PX / cam.zoom, vx / cam.zoom, vy / cam.zoom, dt);
   }
   mouse.vx *= 0.85; mouse.vy *= 0.85;
-  if (gesture && gesture.type === 'call' && pointers.size) { releaseFormation(); const pt = [...pointers.values()][0]; const w = toWorld(pt.x, pt.y); callPuppies(w.x, w.y, CALL_PX / cam.zoom); }
+  calling = !!(gesture && gesture.type === 'call' && pointers.size);
+  if (calling) { releaseFormation(); const pt = [...pointers.values()][0]; const w = toWorld(pt.x, pt.y); callPuppies(w.x, w.y, CALL_PX / cam.zoom); }
   // simulate
   for (let i = 0; i < N; i++) updatePuppy(puppies[i], dt);
   rebuildGrid();
