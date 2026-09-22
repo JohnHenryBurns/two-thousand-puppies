@@ -949,12 +949,15 @@ function updateIntro(dt) {
   cam.zoom = Math.exp(lerp(Math.log(5), Math.log(minZoom()), e));
   cam.x = lerp(intro.sx, WORLD.w / 2, e); cam.y = lerp(intro.sy, WORLD.h / 2, e);
   clampCam(cam); Object.assign(camT, cam);
-  // the count only ever climbs: the view can drift off a dense patch while panning, which would make it dip
-  intro.seen = Math.max(intro.seen || 1, visibleCount);
-  const n = prog >= 1 ? N : intro.seen;
+  // The count only ever climbs (the view can drift off a dense patch while panning), and it is animated:
+  // one puppy at a time at first, so a kid can read 1, 2, 3, 4... before it races up to 2,000.
+  intro.seen = prog >= 1 ? N : Math.max(intro.seen || 1, visibleCount);
+  const shown = intro.shown || 1;
+  intro.shown = Math.min(intro.seen, shown + (shown < 10 ? 2.5 : shown * 1.5) * dt);   // 1..10 at 400 ms each, then faster
+  const n = Math.floor(intro.shown);
   $('bignum-n').textContent = fmtNum(n); $('bignum-label').textContent = n === 1 ? 'puppy' : 'puppies';
   if (prog > 0.05) $('card').classList.add('hidden');
-  if (prog >= 1) {
+  if (prog >= 1 && n >= N) {
     intro = null;
     $('bignum-label').textContent = 'puppies. One for every day' + (kidName ? ', ' + kidName : '') + '!';
     setTimeout(() => $('bignum').classList.add('hidden'), 4000);
