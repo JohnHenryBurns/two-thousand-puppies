@@ -842,12 +842,16 @@ window.addEventListener('keydown', e => {
   else if (e.key === '3') setTool('treat'); else if (e.key === '4') setTool('ball');
   else if (e.key === 'Escape') { closeMenu(); $('help').classList.add('hidden'); }
 });
+// the mouse cursor matches the tool (see the cur-* rules in style.css)
 function updateCursor() {
   let cls = '';
-  if (gesture && gesture.type === 'pan') cls = 'grab';
-  else if (tool === 'hand' && isPetMode() && mouse.inside) { const w = toWorld(mouse.x, mouse.y); if (puppyAt(w.x, w.y)) cls = 'point'; }
-  else if (tool !== 'hand') cls = 'point';
-  canvas.className = cls;
+  if (intro) cls = '';
+  else if (gesture && (gesture.type === 'pan' || gesture.type === 'pinch')) cls = 'cur-grabbing';
+  else if (tool === 'hand') {
+    if (!isPetMode()) cls = 'cur-shoo';
+    else { const w = toWorld(mouse.x, mouse.y); cls = mouse.inside && puppyAt(w.x, w.y) ? 'cur-pet' : 'cur-grab'; }
+  } else cls = 'cur-' + tool;
+  if (canvas.className !== cls) canvas.className = cls;
 }
 // minimap navigation
 function miniNav(e) {
@@ -1213,6 +1217,7 @@ function frame(t) {
   if (now < fireworksUntil && Math.random() < dt * 2.5) burstConfetti(rnd(W * 0.15, W * 0.85), rnd(H * 0.15, H * 0.5), 60, 400);
   render();
   renderMini();
+  if (mouse.inside) updateCursor();   // zooming changes what the hand does, so keep the cursor in step
   frameCost = lerp(frameCost, performance.now() - t0, 0.05);
   // still too slow for 60 fps after a few seconds? drop the canvas resolution a notch (never back up: no flicker)
   if (frameCost > 24 && quality < 2 && now - qualityChangedAt > 4 && params.get('adapt') !== '0') {
