@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#5cb85c">
+<title>2000 Puppies!</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐶</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<div id="hud">
+  <div id="topbar">
+    <div id="title">🐶 2000 Puppies</div>
+    <div id="counter">Petted <b id="petcount">0</b> of 2000</div>
+    <div id="bar"><div id="barfill"></div></div>
+  </div>
+
+  <div id="card" class="hidden"></div>
+  <div id="toast" class="hidden"></div>
+  <div id="bignum" class="hidden"><div id="bignum-n">1</div><div id="bignum-label">puppy</div></div>
+
+  <div id="toolbar">
+    <div class="group tools">
+      <button class="tool active" data-tool="hand" title="Hand: shoo when far away, pet when close"><span>✋</span><small>Hand</small></button>
+      <button class="tool" data-tool="call" title="Call: hold to call the puppies"><span>📣</span><small>Call</small></button>
+      <button class="tool" data-tool="treat" title="Treat: tap to drop a treat"><span>🦴</span><small>Treat</small></button>
+      <button class="tool" data-tool="ball" title="Ball: tap to throw the ball"><span>🎾</span><small>Ball</small></button>
+    </div>
+    <div class="group">
+      <button id="btn-surprise" title="Surprise shapes"><span>✨</span><small>Surprise</small></button>
+    </div>
+    <div class="group">
+      <button id="btn-zoomout" title="Zoom out"><span>➖</span><small>Zoom</small></button>
+      <button id="btn-zoomin" title="Zoom in"><span>➕</span><small>Zoom</small></button>
+      <button id="btn-all" title="See all 2000"><span>🌍</span><small>All</small></button>
+    </div>
+    <div class="group">
+      <button id="btn-sound" title="Sound on/off"><span id="sound-icon">🔊</span><small>Sound</small></button>
+      <button id="btn-help" title="How to play"><span>❓</span><small>Help</small></button>
+    </div>
+  </div>
+
+  <div id="surprise-menu" class="hidden">
+    <button data-form="heart">❤️ Make a heart</button>
+    <button data-form="name" id="form-name">✨ Spell my name</button>
+    <button data-form="count">🔢 Count by 100s</button>
+    <button data-form="free">🐾 Free play</button>
+  </div>
+
+  <canvas id="minimap" width="200" height="133"></canvas>
+</div>
+
+<div id="intro" class="overlay">
+  <div class="panel">
+    <div class="paws">🐶🐕🐩</div>
+    <h1>2000 Puppies!</h1>
+    <div class="for-line">for <input id="name-input" type="text" maxlength="14" placeholder="your name" autocomplete="off"></div>
+    <p class="big">You have been alive for <b>2,000 days</b>.<br>That is a LOT of days!</p>
+    <p>So here are <b>2,000 puppies</b>. One for every single day. Every puppy has a name, and every puppy is yours.</p>
+    <p id="intro-days" class="days"></p>
+    <button id="btn-start" class="primary">Meet the puppies! 🐾</button>
+    <details class="parents">
+      <summary>For grown-ups</summary>
+      <label>Birthday <input id="bday-input" type="date"></label>
+      <p>The puppies are numbered by day: puppy #1 is the day she was born, puppy #2000 is day 2,000. Set the birthday so each puppy shows its real date. Name and birthday are saved on this device.</p>
+    </details>
+  </div>
+</div>
+
+<div id="help" class="overlay hidden">
+  <div class="panel">
+    <h2>How to play</h2>
+    <ul>
+      <li><b>🌍 Far away</b>, the puppies are tiny dots. Wave your finger or mouse through them to <b>shoo</b> them!</li>
+      <li><b>🔍 Zoom in</b> with two fingers, the scroll wheel, or the ➕ button to get close.</li>
+      <li><b>✋ Up close</b>, tap a puppy to <b>pet</b> it. Drag on the grass to look around.</li>
+      <li><b>📣 Call</b>: press and hold, and the puppies come running.</li>
+      <li><b>🦴 Treat</b>: tap to drop a treat. Somebody will eat it!</li>
+      <li><b>🎾 Ball</b>: tap to throw. A puppy will fetch it back to you.</li>
+      <li><b>✨ Surprise</b>: watch all 2,000 puppies make a shape.</li>
+      <li>The little map in the corner shows all 2,000 puppies. Tap it to jump there.</li>
+    </ul>
+    <h3>How big is 2,000?</h3>
+    <ul>
+      <li>If you pet one puppy every second and never stop, it takes <b>33 minutes</b> to pet them all.</li>
+      <li>2,000 puppies nose to tail would be as long as <b>8 football fields</b>.</li>
+      <li>2,000 days is <b>more than 5 years</b>. And you lived every one of them!</li>
+    </ul>
+    <p id="help-stats"></p>
+    <div class="row">
+      <button id="btn-close-help" class="primary">Back to the puppies</button>
+      <button id="btn-replay">Replay the intro</button>
+      <button id="btn-reset" class="danger">Reset progress</button>
+    </div>
+  </div>
+</div>
+
+<script src="game.js"></script>
+</body>
+</html>
