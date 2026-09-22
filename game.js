@@ -712,11 +712,18 @@ function endPointer(e) {
 canvas.addEventListener('pointerup', endPointer);
 canvas.addEventListener('pointercancel', endPointer);
 canvas.addEventListener('pointerleave', e => { if (e.pointerType === 'mouse') mouse.inside = false; });
-canvas.addEventListener('wheel', e => {
-  e.preventDefault(); if (intro) return;
-  zoomAt(e.clientX, e.clientY, camT.zoom * Math.exp(-e.deltaY * 0.0016), false);
+// Scroll wheel / trackpad zoom. Listening on the window means it also works over the HUD panels.
+window.addEventListener('wheel', e => {
+  if (!$('intro').classList.contains('hidden') || !$('help').classList.contains('hidden')) return; // let overlays scroll
+  e.preventDefault();
+  if (intro) skipIntro();
+  // normalise: deltaMode 0 = pixels, 1 = lines (Firefox), 2 = pages
+  let dy = e.deltaY;
+  if (e.deltaMode === 1) dy *= 16; else if (e.deltaMode === 2) dy *= H;
+  dy = clamp(dy, -240, 240);
+  zoomAt(e.clientX, e.clientY, camT.zoom * Math.exp(-dy * 0.0025), false);
 }, { passive: false });
-canvas.addEventListener('dblclick', e => { if (!intro) zoomAt(e.clientX, e.clientY, camT.zoom * 2, false); });
+canvas.addEventListener('dblclick', e => { if (intro) skipIntro(); zoomAt(e.clientX, e.clientY, camT.zoom * 2, false); });
 canvas.addEventListener('contextmenu', e => e.preventDefault());
 document.addEventListener('gesturestart', e => e.preventDefault());
 window.addEventListener('keydown', e => {
@@ -758,8 +765,8 @@ function setTool(t) {
   updateCursor();
 }
 document.querySelectorAll('#toolbar .tool').forEach(b => b.addEventListener('click', () => { sfx.unlock(); setTool(b.dataset.tool); closeMenu(); }));
-$('btn-zoomin').addEventListener('click', () => { if (!intro) zoomAt(W / 2, H / 2, camT.zoom * 1.6, false); });
-$('btn-zoomout').addEventListener('click', () => { if (!intro) zoomAt(W / 2, H / 2, camT.zoom / 1.6, false); });
+$('btn-zoomin').addEventListener('click', () => { if (intro) skipIntro(); zoomAt(W / 2, H / 2, camT.zoom * 1.6, false); });
+$('btn-zoomout').addEventListener('click', () => { if (intro) skipIntro(); zoomAt(W / 2, H / 2, camT.zoom / 1.6, false); });
 $('btn-all').addEventListener('click', () => { if (intro) return; camT.zoom = minZoom(); camT.x = WORLD.w / 2; camT.y = WORLD.h / 2; clampCam(camT); });
 $('btn-surprise').addEventListener('click', () => { sfx.unlock(); $('surprise-menu').classList.toggle('hidden'); });
 function closeMenu() { $('surprise-menu').classList.add('hidden'); }
@@ -846,6 +853,12 @@ function startIntro() {
   showCard(p, 0);
   $('bignum-n').textContent = '1'; $('bignum-label').textContent = 'puppy';
   $('bignum').classList.remove('hidden');
+}
+function skipIntro() {
+  // jump straight to the end of the reveal (the whole field, all 2,000 in view)
+  if (!intro) return;
+  intro.t = 2.6 + 9;
+  updateIntro(0);
 }
 function updateIntro(dt) {
   intro.t += dt;
