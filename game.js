@@ -280,9 +280,12 @@ function eachNear(x, y, r, fn) {
     while (i >= 0) { const p = puppies[i]; const dx = p.x - x, dy = p.y - y; if (dx * dx + dy * dy <= r2) fn(p, Math.sqrt(dx * dx + dy * dy)); i = nxt[i]; }
   }
 }
+// how easily a puppy gets nudged aside: sleepers don't budge, sitting ones barely do
+function mobility(p) { return p.state === 'sleep' ? 0 : (p.state === 'idle' || p.state === 'eat' || p.state === 'happy') ? 0.25 : 1; }
 function separate() {
   for (let i = 0; i < N; i++) {
     const p = puppies[i];
+    const mp = mobility(p);
     const cx = clamp((p.x / CELL) | 0, 0, GW - 1), cy = clamp((p.y / CELL) | 0, 0, GH - 1);
     for (let yy = Math.max(0, cy - 1); yy <= Math.min(GH - 1, cy + 1); yy++)
       for (let xx = Math.max(0, cx - 1); xx <= Math.min(GW - 1, cx + 1); xx++) {
@@ -295,9 +298,11 @@ function separate() {
             let d2 = dx * dx + dy * dy;
             if (d2 < min * min) {
               if (d2 < 0.01) { dx = rnd(-1, 1); dy = rnd(-1, 1); d2 = dx * dx + dy * dy; }
-              const d = Math.sqrt(d2), push = (min - d) * 0.25;
+              const d = Math.sqrt(d2), push = (min - d) * 0.5;
               const nx = dx / d, ny = dy / d;
-              p.x -= nx * push; p.y -= ny * push; q.x += nx * push; q.y += ny * push;
+              const mq = mobility(q), ms = mp + mq;
+              const fp = ms > 0 ? mp / ms : 0.5, fq = ms > 0 ? mq / ms : 0.5;
+              p.x -= nx * push * fp; p.y -= ny * push * fp; q.x += nx * push * fq; q.y += ny * push * fq;
             }
           }
           j = nxt[j];
@@ -377,9 +382,9 @@ function pickWander(p) {
 function updatePuppy(p, dt) {
   switch (p.state) {
     case 'idle':
-      p.t -= dt;
+      p.t -= dt; damp(p, 8, dt);
       if (p.t <= 0) {
-        if (Math.random() < 0.06 && now - p.lastPet > 10) { p.state = 'sleep'; p.t = rnd(6, 16); }
+        if (Math.random() < 0.06 && now - p.lastPet > 10) { p.state = 'sleep'; p.t = rnd(6, 16); p.vx = p.vy = 0; }
         else pickWander(p);
       }
       break;
@@ -421,7 +426,7 @@ function updatePuppy(p, dt) {
       if (p.t <= 0) toIdle(p);
       break;
     case 'sleep':
-      p.t -= dt;
+      p.t -= dt; damp(p, 12, dt);
       if (Math.random() < dt * 0.7) spawnZz(p);
       if (p.t <= 0) toIdle(p, 0.5);
       break;
