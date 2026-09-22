@@ -33,15 +33,19 @@ you send to a tablet:
 
 ```
 https://johnhenryburns.github.io/two-thousand-puppies/?name=Lily&birthday=2021-04-02
+https://johnhenryburns.github.io/two-thousand-puppies/?name=Ada&days=1846
 ```
 
 - `name`: shown in the title, the intro, and the "Spell my name" formation.
-- `birthday`: `YYYY-MM-DD`. Puppy #n is dated `birthday + (n - 1)` days, so puppy #2000 is day 2,000.
-  If unset, the game assumes today is the last day.
-- `days`: how many days to celebrate, which is how many puppies there are. Defaults to 2000.
-  Any number from 10 to 2600 (about 7 years) works, so a friend's kid can get `?name=Ada&days=1846`.
-  Every bit of text, the intro count, the "Count by 100s" formation, and the milestones follow it,
-  and petting progress is saved separately per number.
+- `birthday`: `YYYY-MM-DD`. The number of puppies becomes the number of days from that birthday
+  to today (the birthday itself is day 1), so the link stays correct every day it is opened.
+  Puppy #n is dated `birthday + (n - 1)` days. If `birthday` is given, `days` is ignored.
+- `days`: a fixed number of days to celebrate, which is how many puppies there are. Defaults to 2000.
+  Use it when you want a specific number, for example `?name=Ada&days=1846`. If unset and there is
+  no birthday, the game assumes today is day 2,000.
+- Either way the count is kept between 10 and 2600 (about 7 years). Every bit of text, the intro
+  count, the "Count by 100s" formation, and the milestones follow it, and petting progress is saved
+  separately per number.
 - `intro=0`: skip the title screen. Optional `zoom`, `x`, `y` set the starting camera.
 
 ## Files

@@ -66,11 +66,16 @@ function ageParts(a, b) {
 
 // ============================================================ SETTINGS
 const params = new URLSearchParams(location.search);
-// ?days=1846 celebrates a different number of days (one puppy each). Also settable on the title screen.
-N = clamp(parseInt(params.get('days') || store.get('days', '2000'), 10) || 2000, 10, MAX_DAYS);
+// How many days (one puppy each) to celebrate:
+//   ?birthday=YYYY-MM-DD  counts the days from that birthday to today (day 1 is the birthday), so the link stays right every day
+//   ?days=1846            a fixed number; ignored when the link also has a birthday
+//   neither               2,000 (or the number saved from the title screen)
+const urlBirthday = parseDate(params.get('birthday'));
+if (urlBirthday) N = clamp(Math.round((todayUTC().getTime() - urlBirthday.getTime()) / DAY_MS) + 1, 10, MAX_DAYS);
+else N = clamp(parseInt(params.get('days') || store.get('days', '2000'), 10) || 2000, 10, MAX_DAYS);
 const KEY = N === 2000 ? '' : '.' + N;   // progress is saved per puppy count, so two kids' links don't mix on one device
 let kidName = (params.get('name') || store.get('name', '')).trim();
-let birthday = parseDate(params.get('birthday')) || parseDate(store.get('bday', '')) || new Date(todayUTC().getTime() - (N - 1) * DAY_MS);
+let birthday = urlBirthday || parseDate(store.get('bday', '')) || new Date(todayUTC().getTime() - (N - 1) * DAY_MS);
 const dayDate = n => new Date(birthday.getTime() + (n - 1) * DAY_MS);
 
 // ============================================================ NAMES & LOOKS
@@ -949,7 +954,9 @@ $('days-input').addEventListener('change', () => {
   $('days-input').value = d;
   if (d === N) return;
   store.set('days', String(d));
-  const u = new URL(location.href); u.searchParams.set('days', String(d)); location.href = u.toString();
+  const u = new URL(location.href); u.searchParams.set('days', String(d));
+  if (urlBirthday) { store.set('bday', ymd(urlBirthday)); u.searchParams.delete('birthday'); }   // a birthday in the link would override days
+  location.href = u.toString();
 });
 $('btn-start').addEventListener('click', () => {
   sfx.unlock();
