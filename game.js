@@ -1076,9 +1076,10 @@ function render() {
   }
   // world particles
   for (const q of parts) {
+    if (dots && q.kind !== 'heart') continue;   // sleep z's and crumbs would dwarf 3px puppies
     const a = Math.min(1, q.life / q.max * 1.5);
     if (q.kind === 'heart') {
-      const s = Math.max(5, 9 / z);
+      const s = dots ? 4 / z : Math.max(5, 9 / z);
       ctx.fillStyle = q.c; ctx.globalAlpha = a;
       ctx.beginPath(); ctx.moveTo(q.x, q.y + s * 0.6);
       ctx.bezierCurveTo(q.x - s, q.y - s * 0.3, q.x - s * 0.5, q.y - s, q.x, q.y - s * 0.4);
@@ -1087,7 +1088,7 @@ function render() {
     } else if (q.kind === 'crumb') { ctx.fillStyle = q.c; ctx.fillRect(q.x - 1.2, q.y - 1.2, 2.4, 2.4); }
     else if (q.kind === 'zz') {
       ctx.globalAlpha = a; ctx.fillStyle = '#fff'; ctx.strokeStyle = 'rgba(0,0,0,0.5)'; ctx.lineWidth = 0.8;
-      ctx.font = '700 ' + Math.max(8, 12 / z) + 'px Fredoka, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.font = '700 ' + Math.max(10, 7 / z) + 'px Fredoka, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       ctx.strokeText('z', q.x, q.y); ctx.fillText('z', q.x, q.y); ctx.globalAlpha = 1;
     }
   }
