@@ -452,6 +452,7 @@ function puppyAt(x, y) {
   return best;
 }
 function pet(p, first) {
+  releaseFormation();
   if (p.state === 'carry') { spawnHearts(p, 1); return; }
   if (!first && now - p.lastPet < 0.35) return;
   p.lastPet = now;
@@ -463,6 +464,7 @@ function pet(p, first) {
   if (first) { showCard(p, 3500); sfx.yip(); }
 }
 function dropTreat(x, y) {
+  releaseFormation();
   const t = { type: 'treat', x, y, eaten: false, gone: false };
   treats.push(t); if (treats.length > 30) removeTreat(treats[0]);
   stats.treats++; saveStats(); sfx.pop();
@@ -473,6 +475,7 @@ function dropTreat(x, y) {
 }
 function removeTreat(t) { if (!t) return; t.gone = true; const i = treats.indexOf(t); if (i >= 0) treats.splice(i, 1); }
 function throwBall(tx, ty) {
+  releaseFormation();
   if (ball.carrier) { const c = ball.carrier; ball.carrier = null; toIdle(c, 0.3); }
   const home = playerPos();
   ball.hx = clamp(home.x, MARGIN, WORLD.w - MARGIN); ball.hy = clamp(home.y, MARGIN, WORLD.h - MARGIN);
@@ -601,6 +604,12 @@ function startFormation(kind) {
   camT.zoom = minZoom(); camT.x = WORLD.w / 2; camT.y = WORLD.h / 2; clampCam(camT);
   sfx.chime();
 }
+// Using any tool on the field while a shape is showing sets the puppies free again.
+function releaseFormation() {
+  if (!formation) return;
+  endFormation();
+  showToast('Run free, puppies! 🐾', 2000);
+}
 function endFormation() {
   if (!formation) return;
   formation = null;
@@ -704,6 +713,8 @@ function endPointer(e) {
     if (tool === 'treat') dropTreat(x, y);
     else if (tool === 'ball') throwBall(x, y);
   }
+  // a plain click/tap on the grass with the hand (no drag, no pinch) also counts as using it
+  if (gesture && gesture.type === 'pan' && !pt.moved && pointers.size === 1 && tool === 'hand') releaseFormation();
   pointers.delete(e.pointerId);
   if (pointers.size === 0) gesture = null;
   else if (pointers.size === 1 && gesture && gesture.type === 'pinch') { gesture = { type: 'idle' }; pinch = null; }
@@ -773,7 +784,6 @@ function closeMenu() { $('surprise-menu').classList.add('hidden'); }
 document.querySelectorAll('#surprise-menu button').forEach(b => b.addEventListener('click', () => {
   closeMenu(); if (intro) return;
   if (b.dataset.form === 'free') endFormation(); else startFormation(b.dataset.form);
-  setTool('hand'); // back to the hand so the puppies can be shooed right away
 }));
 $('btn-sound').addEventListener('click', () => { sfx.muted = !sfx.muted; updateSoundIcon(); if (!sfx.muted) { sfx.unlock(); sfx.pop(); } });
 function updateSoundIcon() { $('sound-icon').textContent = sfx.muted ? '🔇' : '🔊'; }
@@ -1051,13 +1061,13 @@ function frame(t) {
   const shooActive = tool === 'hand' && !isPetMode() && ((gesture && gesture.type === 'shoo') || (!gesture && mouse.inside));
   if (shooActive) {
     let sx, sy, vx, vy;
-    if (gesture && gesture.type === 'shoo') { const pt = [...pointers.values()][0]; sx = pt.x; sy = pt.y; vx = pt.vx; vy = pt.vy; }
+    if (gesture && gesture.type === 'shoo') { const pt = [...pointers.values()][0]; sx = pt.x; sy = pt.y; vx = pt.vx; vy = pt.vy; if (pt.moved) releaseFormation(); }
     else { sx = mouse.x; sy = mouse.y; vx = mouse.vx; vy = mouse.vy; }
     const w = toWorld(sx, sy);
     shoo(w.x, w.y, SHOO_PX / cam.zoom, vx / cam.zoom, vy / cam.zoom, dt);
   }
   mouse.vx *= 0.85; mouse.vy *= 0.85;
-  if (gesture && gesture.type === 'call' && pointers.size) { const pt = [...pointers.values()][0]; const w = toWorld(pt.x, pt.y); callPuppies(w.x, w.y, CALL_PX / cam.zoom); }
+  if (gesture && gesture.type === 'call' && pointers.size) { releaseFormation(); const pt = [...pointers.values()][0]; const w = toWorld(pt.x, pt.y); callPuppies(w.x, w.y, CALL_PX / cam.zoom); }
   // simulate
   for (let i = 0; i < N; i++) updatePuppy(puppies[i], dt);
   rebuildGrid();
