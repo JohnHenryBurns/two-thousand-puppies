@@ -1102,8 +1102,11 @@ function render() {
       const lv = sprites[p.look][pose][p.facing < 0 ? 1 : 0];
       ctx.drawImage(px >= 72 ? lv[0] : px >= 36 ? lv[1] : lv[2], sx - SPR_OX * k, sy - SPR_OY * k, px, px);
       if (p.petted && s > 0.5) {
-        const c = GEOM[POSES[pose]].collar;
-        ctx.fillStyle = p.collar; ctx.beginPath(); ctx.ellipse(sx + c[0] * s * p.facing, sy + c[1] * s, 2.2 * s, 6.5 * s, -0.35 * p.facing, 0, TAU); ctx.fill();
+        // the collar as it looks up close: only the band under the chin shows (the head hides the rest), plus the tag
+        const c = GEOM[POSES[pose]].collar, cx = sx + c[0] * s * p.facing, cy = sy + c[1] * s, rot = -0.35 * p.facing;
+        ctx.fillStyle = p.collar; ctx.beginPath(); ctx.ellipse(cx, cy, 2.8 * s, 6.8 * s, rot, Math.PI * 0.12, Math.PI * 0.88); ctx.closePath(); ctx.fill();
+        const tx = cx + 1.6 * s * p.facing, ty = cy + 6.2 * s;
+        ctx.fillStyle = '#ffd54f'; ctx.beginPath(); ctx.arc(tx, ty, 1.4 * s, 0, TAU); ctx.fill();
       }
     }
   } else {
