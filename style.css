@@ -62,7 +62,7 @@ html, body {
 #bignum-label { font-size: clamp(20px, 4vw, 40px); font-weight: 600; }
 
 #toolbar {
-  position: absolute; bottom: max(10px, env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%);
+  position: absolute; bottom: max(10px, env(safe-area-inset-bottom)); left: 0; right: 0; margin: 0 auto; width: fit-content;
   display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; max-width: 100vw; padding: 0 8px;
 }
 #toolbar .group {
@@ -139,12 +139,58 @@ details.parents label { display: block; margin: 8px 0; font-size: 16px; color: #
 details.parents input { font-family: var(--font); font-size: 16px; padding: 4px 8px; border-radius: 8px; border: 1px solid #ccc; }
 #help-stats { font-size: 15px; color: #777; }
 
-@media (max-width: 600px) {
-  #toolbar button { width: 50px; height: 50px; }
-  #toolbar button span { font-size: 22px; }
-  #toolbar button small { font-size: 10px; }
+/* tablets: keep the minimap, but tuck a smaller one into the top-right corner, clear of the toolbar */
+@media (max-width: 900px) {
   #minimap { width: 120px; height: 80px; bottom: auto; top: max(10px, env(safe-area-inset-top)); }
-  #topbar { min-width: 150px; padding: 6px 10px; }
-  #title { font-size: 15px; }
+}
+
+/* phones, portrait: two rows of buttons, no minimap */
+@media (max-width: 600px) {
+  #minimap { display: none; }
+  #toolbar { max-width: 300px; gap: 6px; padding: 0; }
+  #toolbar .group { padding: 4px; gap: 2px; border-radius: 16px; }
+  #toolbar button { width: 46px; height: 46px; border-radius: 13px; }
+  #toolbar button span { font-size: 21px; }
+  #toolbar button small { font-size: 9px; }
+  #surprise-menu { bottom: 130px; }
+  #topbar { left: 10px; min-width: 0; padding: 6px 10px; }
+  #title { font-size: 14px; }
+  #counter { font-size: 12px; }
+  #counter b { font-size: 13px; }
+  #bar { height: 7px; margin-top: 4px; }
+  #card { top: calc(max(10px, env(safe-area-inset-top)) + 66px); padding: 8px 14px; }
+  #card .name { font-size: 20px; }
+  #card .day { font-size: 12px; }
   .panel { padding: 20px 18px; }
+}
+
+/* phones, landscape: one row of icon-only buttons, no minimap, compact panels */
+@media (max-height: 500px) and (orientation: landscape) {
+  #minimap { display: none; }
+  #toolbar { max-width: none; gap: 6px; bottom: 6px; padding: 0; flex-wrap: nowrap; }
+  #toolbar .group { padding: 3px; gap: 2px; border-radius: 14px; }
+  #toolbar button { width: 42px; height: 42px; border-radius: 11px; }
+  #toolbar button span { font-size: 22px; }
+  #toolbar button small { display: none; }
+  #surprise-menu { bottom: 62px; flex-direction: row; flex-wrap: wrap; justify-content: center; max-width: 90vw; }
+  #surprise-menu button { font-size: 15px; padding: 8px 12px; }
+  #topbar { top: 6px; left: 8px; min-width: 0; padding: 4px 10px; }
+  #title { font-size: 13px; }
+  #counter { font-size: 11px; }
+  #counter b { font-size: 12px; }
+  #bar { height: 6px; margin-top: 3px; }
+  #card { top: 6px; left: auto; right: 8px; transform: none; max-width: 55vw; padding: 6px 12px; }
+  #card.hidden { transform: translateY(-10px); }
+  #card .name { font-size: 18px; }
+  #card .day { font-size: 11px; }
+  #bignum-n { font-size: 64px; }
+  #bignum-label { font-size: 20px; }
+  .panel { padding: 14px 18px; }
+  .panel h1 { font-size: 30px; }
+  .paws { font-size: 28px; }
+  .for-line { font-size: 20px; margin: 4px 0 8px; }
+  .for-line input { font-size: 22px; width: 180px; }
+  .panel p { font-size: 15px; margin: 6px 0; }
+  .panel p.big { font-size: 17px; }
+  .panel button.primary { font-size: 19px; padding: 10px 20px; }
 }

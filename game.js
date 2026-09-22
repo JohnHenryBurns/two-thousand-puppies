@@ -317,7 +317,7 @@ const mini = $('minimap'), mctx = mini.getContext('2d');
 let W = 1, H = 1, dpr = 1;
 const cam = { x: WORLD.w / 2, y: WORLD.h / 2, zoom: 0.5 };
 const camT = { x: WORLD.w / 2, y: WORLD.h / 2, zoom: 0.5 };
-const HUD_BOTTOM = 84;        // toolbar height, kept clear when the whole world is shown
+let HUD_BOTTOM = 84;          // toolbar height (measured on resize), kept clear when the whole world is shown
 function minZoom() { return Math.min(W / (WORLD.w + 100), (H - HUD_BOTTOM) / (WORLD.h + 100)); }
 function clampCam(c) {
   c.zoom = clamp(c.zoom, minZoom(), MAX_ZOOM);
@@ -338,9 +338,12 @@ function resize() {
   dpr = Math.min(2, window.devicePixelRatio || 1);
   W = window.innerWidth; H = window.innerHeight;
   canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
+  const tb = $('toolbar');
+  HUD_BOTTOM = Math.max(60, (tb ? tb.offsetHeight : 0) + 16);   // one row on desktop, two on portrait phones
   clampCam(camT); clampCam(cam);
 }
 window.addEventListener('resize', resize);
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(resize);   // toolbar height can change once the font lands
 const isPetMode = () => cam.zoom >= PET_ZOOM;
 function playerPos() { return toWorld(W / 2, H - HUD_BOTTOM - 70); }
 
