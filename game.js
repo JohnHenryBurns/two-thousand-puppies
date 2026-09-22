@@ -112,7 +112,7 @@ const LOOKS = [
   { fur: '#efe6d6', dark: '#7a5a3a', light: '#ffffff', pattern: 'patch', shaggy: true, sz: 1.2 },              // st bernard-ish
   { fur: '#5a4632', dark: '#3b2a1e', light: '#a88a6a', ears: 'pointy', sz: 1.0 }                               // brindle mutt
 ];
-LOOKS.forEach(L => { L.mid = mix(L.fur, L.dark, 0.5); L.dot = L.pattern === 'spots' ? mix(L.fur, L.spot, 0.3) : L.fur; L.sz = L.sz || 1; L.ears = L.ears || 'floppy'; L.tail = L.tail || 'wag'; });
+LOOKS.forEach(L => { L.mid = mix(L.fur, L.dark, 0.5); L.dot = L.pattern === 'spots' ? mix(L.fur, L.spot, 0.3) : L.fur; L.dotPetted = mix(L.dot, '#ff6fa3', 0.5); L.sz = L.sz || 1; L.ears = L.ears || 'floppy'; L.tail = L.tail || 'wag'; });
 const COLLARS = ['#e53935', '#1e88e5', '#43a047', '#fb8c00', '#8e24aa', '#00acc1', '#ff6fa3', '#fdd835'];
 
 // ============================================================ PUPPY DRAWING
@@ -219,9 +219,15 @@ function drawPuppy(g, L, poseName, o) {
   if (Gm.blush) circ(g, hx + 1.5, hy + 1.5, 1.9, 'rgba(255,110,150,0.45)');
 }
 
-// sprite cache: sprites[look][pose][facing(0 = right, 1 = left)]
+// sprite cache: sprites[look][pose][facing(0 = right, 1 = left)] = [96px, 48px, 24px] mip levels.
+// Drawing a pre-shrunk copy is much cheaper (and smoother) than shrinking the 96px one on every draw.
 const SPR = 96, SPR_SCALE = 2, SPR_OX = 48, SPR_OY = 50;
 const sprites = [];
+function shrink(src, size) {
+  const c = document.createElement('canvas'); c.width = c.height = size;
+  const g = c.getContext('2d'); g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high';
+  g.drawImage(src, 0, 0, size, size); return c;
+}
 function makeSprites() {
   for (let l = 0; l < LOOKS.length; l++) {
     sprites[l] = [];
@@ -232,9 +238,22 @@ function makeSprites() {
         const g = c.getContext('2d');
         g.translate(SPR_OX, SPR_OY); g.scale(SPR_SCALE * (f ? -1 : 1), SPR_SCALE);
         drawPuppy(g, LOOKS[l], POSES[p], {});
-        sprites[l][p][f] = c;
+        const c48 = shrink(c, 48);
+        sprites[l][p][f] = [c, c48, shrink(c48, 24)];
       }
     }
+  }
+}
+// flowers as sprites too (one per colour), so the meadow costs one drawImage per flower instead of six arcs
+const flowerSprites = {};
+function makeFlowerSprites(cols) {
+  for (const col of cols) {
+    const c = document.createElement('canvas'); c.width = c.height = 96;
+    const g = c.getContext('2d'); g.translate(48, 48); g.scale(48 / 1.4, 48 / 1.4);
+    g.fillStyle = col;
+    for (let k = 0; k < 5; k++) { const a = k / 5 * TAU; g.beginPath(); g.arc(Math.cos(a) * 0.8, Math.sin(a) * 0.8, 0.55, 0, TAU); g.fill(); }
+    g.fillStyle = '#ffca28'; g.beginPath(); g.arc(0, 0, 0.45, 0, TAU); g.fill();
+    flowerSprites[col] = c;
   }
 }
 
@@ -334,10 +353,15 @@ function zoomAt(sx, sy, z, snap) {
   if (snap) Object.assign(cam, camT);
 }
 function panBy(dx, dy) { camT.x -= dx / cam.zoom; camT.y -= dy / cam.zoom; clampCam(camT); cam.x = camT.x; cam.y = camT.y; }
+// quality: 0 = full; 1 and 2 lower the canvas resolution (and 2 drops shadows). Only stepped down, automatically,
+// when a device can't keep up. Small screens also draw fewer live-vector puppies before falling back to sprites.
+let quality = 0, dprCap = 2, qualityChangedAt = 0, vectorMax = 260, miniVisible = true;
 function resize() {
-  dpr = Math.min(2, window.devicePixelRatio || 1);
+  dpr = Math.min(dprCap, window.devicePixelRatio || 1);
   W = window.innerWidth; H = window.innerHeight;
   canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
+  vectorMax = Math.min(W, H) <= 600 ? 100 : 260;
+  miniVisible = getComputedStyle(mini).display !== 'none';
   const tb = $('toolbar');
   HUD_BOTTOM = Math.max(60, (tb ? tb.offsetHeight : 0) + 16);   // one row on desktop, two on portrait phones
   clampCam(camT); clampCam(cam);
@@ -950,6 +974,7 @@ function makeGrass() {
   grass = ctx.createPattern(c, 'repeat');
 }
 const visible = [];
+const dotBuckets = []; for (let i = 0; i < LOOKS.length * 2; i++) dotBuckets.push([]);
 function render() {
   const z = cam.zoom;
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -961,9 +986,7 @@ function render() {
   const vx0 = cam.x - W / 2 / z - 40, vx1 = cam.x + W / 2 / z + 40, vy0 = cam.y - H / 2 / z - 40, vy1 = cam.y + H / 2 / z + 40;
   if (z > 0.45) for (const f of flowers) {
     if (f.x < vx0 || f.x > vx1 || f.y < vy0 || f.y > vy1) continue;
-    ctx.fillStyle = f.c;
-    for (let k = 0; k < 5; k++) { const a = k / 5 * TAU; ctx.beginPath(); ctx.arc(f.x + Math.cos(a) * f.s * 0.8, f.y + Math.sin(a) * f.s * 0.8, f.s * 0.55, 0, TAU); ctx.fill(); }
-    ctx.fillStyle = '#ffca28'; ctx.beginPath(); ctx.arc(f.x, f.y, f.s * 0.45, 0, TAU); ctx.fill();
+    ctx.drawImage(flowerSprites[f.c], f.x - 1.4 * f.s, f.y - 1.4 * f.s, 2.8 * f.s, 2.8 * f.s);
   }
   // fence
   ctx.strokeStyle = '#8d5a2b'; ctx.lineWidth = 8; ctx.strokeRect(0, 0, WORLD.w, WORLD.h);
@@ -993,11 +1016,11 @@ function render() {
   visible.length = 0;
   for (let i = 0; i < N; i++) { const p = puppies[i]; if (p.x >= vx0 && p.x <= vx1 && p.y >= vy0 && p.y <= vy1) visible.push(p); }
   visibleCount = visible.length;
-  visible.sort((a, b) => a.y - b.y);
-  const useVector = z >= 2.2 && visible.length <= 260;
-  const dots = z * 24 < 3.5;
+  const useVector = z >= 2.2 && visible.length <= vectorMax;
+  const dots = z * 24 < 5;                       // below ~5px a puppy is a coloured dot
+  if (!dots) visible.sort((a, b) => a.y - b.y);  // depth order only matters once you can see legs
   // shadows
-  if (!dots && z * 24 > 9) {
+  if (!dots && z * 24 > 9 && quality < 2) {
     ctx.fillStyle = 'rgba(0,0,0,0.2)';
     ctx.beginPath();
     for (const p of visible) { const s = p.size; ctx.moveTo(p.x + 11 * s, p.y + 12 * s); ctx.ellipse(p.x, p.y + 12 * s, 11 * s, 4 * s, 0, 0, TAU); }
@@ -1005,19 +1028,26 @@ function render() {
   }
   const pw = mouse.inside ? toWorld(mouse.x, mouse.y) : null;
   if (dots) {
+    // batch by colour: one path + one fill per colour instead of 2,000 fillStyle changes
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    const r = Math.max(1, z * 12);
-    for (const p of visible) {
-      ctx.fillStyle = p.petted ? mix(LOOKS[p.look].dot, '#ff6fa3', 0.5) : LOOKS[p.look].dot;
-      ctx.fillRect(ox + p.x * z - r, oy + p.y * z - r, r * 2, r * 2);
+    const r = Math.max(1, z * 12), d2 = r * 2;
+    for (const b of dotBuckets) b.length = 0;
+    for (const p of visible) dotBuckets[p.look * 2 + (p.petted ? 1 : 0)].push(p);
+    for (let b = 0; b < dotBuckets.length; b++) {
+      const arr = dotBuckets[b]; if (!arr.length) continue;
+      ctx.fillStyle = (b & 1) ? LOOKS[b >> 1].dotPetted : LOOKS[b >> 1].dot;
+      ctx.beginPath();
+      for (const p of arr) ctx.rect(ox + p.x * z - r, oy + p.y * z - r, d2, d2);
+      ctx.fill();
     }
   } else if (!useVector) {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     for (const p of visible) {
-      const s = z * p.size, k = s / SPR_SCALE;
+      const s = z * p.size, k = s / SPR_SCALE, px = SPR * k;
       const sx = ox + p.x * z, sy = oy + p.y * z;
       const pose = poseOf(p);
-      ctx.drawImage(sprites[p.look][pose][p.facing < 0 ? 1 : 0], sx - SPR_OX * k, sy - SPR_OY * k, SPR * k, SPR * k);
+      const lv = sprites[p.look][pose][p.facing < 0 ? 1 : 0];
+      ctx.drawImage(px >= 72 ? lv[0] : px >= 36 ? lv[1] : lv[2], sx - SPR_OX * k, sy - SPR_OY * k, px, px);
       if (p.petted && s > 0.5) {
         const c = GEOM[POSES[pose]].collar;
         ctx.fillStyle = p.collar; ctx.beginPath(); ctx.ellipse(sx + c[0] * s * p.facing, sy + c[1] * s, 2.2 * s, 6.5 * s, -0.35 * p.facing, 0, TAU); ctx.fill();
@@ -1080,7 +1110,7 @@ function render() {
 }
 let miniFrame = 0;
 function renderMini() {
-  if ((miniFrame++ & 3) !== 0) return;
+  if (!miniVisible || (miniFrame++ & 3) !== 0) return;
   const mw = mini.width, mh = mini.height, kx = mw / WORLD.w, ky = mh / WORLD.h;
   mctx.fillStyle = '#6dbf5c'; mctx.fillRect(0, 0, mw, mh);
   for (let i = 0; i < N; i++) { const p = puppies[i]; mctx.fillStyle = p.petted ? '#ff6fa3' : '#5b3a1e'; mctx.fillRect(p.x * kx - 0.75, p.y * ky - 0.75, 1.5, 1.5); }
@@ -1091,10 +1121,13 @@ function renderMini() {
 
 // ============================================================ MAIN LOOP
 let last = performance.now();
+let frameCost = 0;            // smoothed ms of work per frame (excludes vsync wait)
 function frame(t) {
   requestAnimationFrame(frame);
+  if (t - last < 12) return;           // 120 Hz phones: simulate and draw at 60, halving the work
   let dt = (t - last) / 1000; last = t;
   if (dt > 0.1) dt = 0.1; if (dt <= 0) return;
+  const t0 = performance.now();
   now += dt;
   // camera easing
   if (!intro) {
@@ -1123,12 +1156,20 @@ function frame(t) {
   if (now < fireworksUntil && Math.random() < dt * 2.5) burstConfetti(rnd(W * 0.15, W * 0.85), rnd(H * 0.15, H * 0.5), 60, 400);
   render();
   renderMini();
+  frameCost = lerp(frameCost, performance.now() - t0, 0.05);
+  // still too slow for 60 fps after a few seconds? drop the canvas resolution a notch (never back up: no flicker)
+  if (frameCost > 24 && quality < 2 && now - qualityChangedAt > 4 && params.get('adapt') !== '0') {
+    quality++; qualityChangedAt = now; frameCost = 0;
+    dprCap = quality === 1 ? 1.5 : 1.25;
+    resize();
+  }
 }
 
 // ============================================================ BOOT
 resize();
 makeGrass();
 makeSprites();
+makeFlowerSprites([...new Set(flowers.map(f => f.c))]);
 makePuppies();
 pettedCount = puppies.reduce((a, p) => a + (p.petted ? 1 : 0), 0);
 updateCounter();
@@ -1145,5 +1186,5 @@ if (params.get('intro') === '0') {
 }
 requestAnimationFrame(frame);
 // small debug handle (used by the headless tests)
-window.TKP = { puppies, cam, camT, startFormation, endFormation, dropTreat, throwBall, LOOKS, POSES, drawPuppy, get stats() { return stats; }, get petted() { return pettedCount; }, get ball() { return ball; }, get formation() { return formation; } };
+window.TKP = { puppies, cam, camT, startFormation, endFormation, dropTreat, throwBall, LOOKS, POSES, drawPuppy, get stats() { return stats; }, get frameCost() { return frameCost; }, get petted() { return pettedCount; }, get ball() { return ball; }, get formation() { return formation; } };
 })();
