@@ -43,7 +43,8 @@ https://johnhenryburns.github.io/two-thousand-puppies/?name=Ada&days=1846
 - `days`: a fixed number of days to celebrate, which is how many puppies there are. Defaults to 2000.
   Use it when you want a specific number, for example `?name=Ada&days=1846`. If unset and there is
   no birthday, the game assumes today is day 2,000.
-- Either way the count is kept between 10 and 2600 (about 7 years). Every bit of text, the intro
+- Either way the count is kept between 10 and 2600 (about 7 years). Anyone older gets a note on the
+  title screen that the rest of their puppies are at the park, and the maximum is drawn. Every bit of text, the intro
   count, the "Count by 100s" formation, and the milestones follow it, and petting progress is saved
   separately per number.
 - `intro=0`: skip the title screen. Optional `zoom`, `x`, `y` set the starting camera.

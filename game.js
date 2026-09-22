@@ -71,8 +71,11 @@ const params = new URLSearchParams(location.search);
 //   ?days=1846            a fixed number; ignored when the link also has a birthday
 //   neither               2,000 (or the number saved from the title screen)
 const urlBirthday = parseDate(params.get('birthday'));
-if (urlBirthday) N = clamp(Math.round((todayUTC().getTime() - urlBirthday.getTime()) / DAY_MS) + 1, 10, MAX_DAYS);
-else N = clamp(parseInt(params.get('days') || store.get('days', '2000'), 10) || 2000, 10, MAX_DAYS);
+const requestedDays = urlBirthday
+  ? Math.round((todayUTC().getTime() - urlBirthday.getTime()) / DAY_MS) + 1
+  : parseInt(params.get('days') || store.get('days', '2000'), 10) || 2000;
+N = clamp(requestedDays, 10, MAX_DAYS);
+const tooMany = requestedDays > MAX_DAYS ? requestedDays : 0;   // someone older than our field can hold: draw the max, and say so
 const KEY = N === 2000 ? '' : '.' + N;   // progress is saved per puppy count, so two kids' links don't mix on one device
 let kidName = (params.get('name') || store.get('name', '')).trim();
 let birthday = urlBirthday || parseDate(store.get('bday', '')) || new Date(todayUTC().getTime() - (N - 1) * DAY_MS);
@@ -931,12 +934,17 @@ function refreshIntroText() {
   parts.push(a.d + (a.d === 1 ? ' day' : ' days'));
   const age = parts.length > 1 ? parts.slice(0, -1).join(', ') + ' and ' + parts[parts.length - 1] : parts[0];
   $('intro-days').textContent = 'Day ' + fmtNum(N) + ' is ' + fmtDate(lastDay) + '. That is ' + age + '!';
+  $('intro-days').style.display = tooMany ? 'none' : '';   // "day 2,600 was in 1995" would only confuse a grown-up
   $('title').textContent = '🐶 ' + N + ' Puppies' + (kidName ? ' for ' + kidName : '');
   $('form-name').textContent = kidName ? '✨ Spell "' + kidName + '"' : '✨ Make a big ' + N;
   document.title = kidName ? N + ' Puppies for ' + kidName + '!' : N + ' Puppies!';
   // every "2,000" in the page text follows the chosen number of days
   document.querySelectorAll('.n').forEach(e => { e.textContent = fmtNum(N); });
   document.querySelectorAll('.n-plain').forEach(e => { e.textContent = String(N); });
+  $('alive-days').textContent = fmtNum(tooMany || N);
+  $('too-many').classList.toggle('hidden', !tooMany);
+  if (tooMany) $('too-many').textContent = 'Whoa, ' + fmtNum(tooMany) + ' days?! 🤯 That is more puppies than fit on our field. We drew the most we could, ' +
+    fmtNum(MAX_DAYS) + ' of them. The other ' + fmtNum(tooMany - MAX_DAYS) + ' are at the park chasing squirrels. 🐿️';
   $('fact-time').textContent = N >= 120 ? Math.round(N / 60) + ' minutes' : N + ' seconds';
   const fields = Math.max(1, Math.round(N * 0.4 / 100));
   $('fact-fields').textContent = fields + (fields === 1 ? ' football field' : ' football fields');

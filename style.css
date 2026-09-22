@@ -116,6 +116,8 @@ html, body {
 .panel p { font-size: 17px; line-height: 1.4; margin: 10px 0; }
 .panel p.big { font-size: 22px; }
 .panel .days { color: var(--brown); font-weight: 600; font-size: 16px; }
+.panel .note { background: #fff3c4; border-radius: 14px; padding: 10px 14px; font-size: 16px; color: #6b4e00; }
+.panel .note.hidden { display: none; }
 .panel ul { text-align: left; padding-left: 22px; font-size: 16px; line-height: 1.45; margin: 6px 0; }
 .panel li { margin: 4px 0; }
 .paws { font-size: 44px; }
