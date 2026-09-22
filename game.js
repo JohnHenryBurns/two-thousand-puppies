@@ -773,6 +773,7 @@ function closeMenu() { $('surprise-menu').classList.add('hidden'); }
 document.querySelectorAll('#surprise-menu button').forEach(b => b.addEventListener('click', () => {
   closeMenu(); if (intro) return;
   if (b.dataset.form === 'free') endFormation(); else startFormation(b.dataset.form);
+  setTool('hand'); // back to the hand so the puppies can be shooed right away
 }));
 $('btn-sound').addEventListener('click', () => { sfx.muted = !sfx.muted; updateSoundIcon(); if (!sfx.muted) { sfx.unlock(); sfx.pop(); } });
 function updateSoundIcon() { $('sound-icon').textContent = sfx.muted ? '🔇' : '🔊'; }
