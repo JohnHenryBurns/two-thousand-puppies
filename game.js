@@ -87,21 +87,32 @@ const NAMES = ('Biscuit Waffles Pancake Maple Peanut Mochi Noodle Pickles Sprink
   'Chestnut Walnut Almond Cashew Pistachio Sesame Poppyseed Mango Guava Papaya Lychee Tango Rumba Salsa Disco Jazz ' +
   'Bongo Banjo Fiddle Piccolo Bugle Trumpet Harmony Melody Lyric Rhythm Cadence Tempo Whistle Echo Yodel Chirp Tweet').split(' ');
 
+// ears: 'floppy' | 'pointy'; shaggy: fluffy outline; tail: 'wag' | 'curl'; sz: breed size multiplier
 const LOOKS = [
-  { fur: '#e8b86d', dark: '#c9954a', light: '#f7e1b5' },                                   // golden
-  { fur: '#f3e3c3', dark: '#d9c39a', light: '#fff7e6' },                                   // cream
-  { fur: '#7a4a2a', dark: '#5a3419', light: '#b98a62' },                                   // chocolate
-  { fur: '#3a3a3a', dark: '#1f1f1f', light: '#8a7a70' },                                   // black
-  { fur: '#fafafa', dark: '#d8d8d8', light: '#ffffff' },                                   // white
-  { fur: '#9a9a9a', dark: '#6e6e6e', light: '#dcdcdc' },                                   // grey
-  { fur: '#d99a5b', dark: '#3b2a20', light: '#fff2dc', pattern: 'patch' },                 // beagle
-  { fur: '#fafafa', dark: '#333333', light: '#ffffff', pattern: 'spots', spot: '#222222' }, // dalmatian
-  { fur: '#e0893a', dark: '#c0702a', light: '#fff8ee', pattern: 'belly' },                 // corgi
-  { fur: '#b9bcc4', dark: '#5b5f6b', light: '#ffffff', pattern: 'mask' },                  // husky
-  { fur: '#c96b3f', dark: '#a0522d', light: '#f3d3b8' },                                   // red setter
-  { fur: '#f0d9b5', dark: '#e2b07a', light: '#ffffff', pattern: 'spots', spot: '#b5793f' } // spotted tan
+  { fur: '#e8b86d', dark: '#c9954a', light: '#f7e1b5', sz: 1.1 },                                              // golden
+  { fur: '#f3e3c3', dark: '#d9c39a', light: '#fff7e6' },                                                       // cream
+  { fur: '#7a4a2a', dark: '#5a3419', light: '#b98a62', sz: 1.15 },                                             // chocolate lab
+  { fur: '#3a3a3a', dark: '#1f1f1f', light: '#8a7a70', sz: 1.1 },                                              // black lab
+  { fur: '#fafafa', dark: '#d8d8d8', light: '#ffffff' },                                                       // white
+  { fur: '#9a9a9a', dark: '#6e6e6e', light: '#dcdcdc' },                                                       // grey
+  { fur: '#d99a5b', dark: '#3b2a20', light: '#fff2dc', pattern: 'patch', sz: 0.9 },                            // beagle
+  { fur: '#fafafa', dark: '#333333', light: '#ffffff', pattern: 'spots', spot: '#222222', sz: 1.1 },           // dalmatian
+  { fur: '#e0893a', dark: '#c0702a', light: '#fff8ee', pattern: 'belly', ears: 'pointy', sz: 0.85 },           // corgi
+  { fur: '#b9bcc4', dark: '#5b5f6b', light: '#ffffff', pattern: 'mask', ears: 'pointy', tail: 'curl', sz: 1.15 }, // husky
+  { fur: '#c96b3f', dark: '#a0522d', light: '#f3d3b8', shaggy: true, sz: 1.1 },                                // red setter
+  { fur: '#f0d9b5', dark: '#e2b07a', light: '#ffffff', pattern: 'spots', spot: '#b5793f' },                    // spotted tan
+  { fur: '#d9a066', dark: '#2e2320', light: '#f2d2a8', pattern: 'saddle', ears: 'pointy', sz: 1.25 },          // shepherd
+  { fur: '#f7f4ec', dark: '#dcd6c8', light: '#ffffff', shaggy: true, ears: 'pointy', sz: 0.75 },               // westie
+  { fur: '#c9ccd2', dark: '#8b8f98', light: '#ffffff', pattern: 'belly', shaggy: true, sz: 1.3 },              // sheepdog
+  { fur: '#f2c69b', dark: '#d9a677', light: '#fff4e6', shaggy: true, sz: 0.8 },                                // apricot poodle
+  { fur: '#2b2b2b', dark: '#111111', light: '#6f6660', shaggy: true, ears: 'pointy', sz: 0.75 },               // scottie
+  { fur: '#e6923c', dark: '#c77a2c', light: '#fff5e0', pattern: 'belly', ears: 'pointy', tail: 'curl', sz: 0.9 }, // shiba
+  { fur: '#f5c27a', dark: '#e0a75c', light: '#fff8ea', shaggy: true, ears: 'pointy', tail: 'curl', sz: 0.65 }, // pomeranian
+  { fur: '#c8a06a', dark: '#5c5a62', light: '#e8d3b0', pattern: 'saddle', shaggy: true, ears: 'pointy', sz: 0.7 }, // yorkie
+  { fur: '#efe6d6', dark: '#7a5a3a', light: '#ffffff', pattern: 'patch', shaggy: true, sz: 1.2 },              // st bernard-ish
+  { fur: '#5a4632', dark: '#3b2a1e', light: '#a88a6a', ears: 'pointy', sz: 1.0 }                               // brindle mutt
 ];
-LOOKS.forEach(L => { L.mid = mix(L.fur, L.dark, 0.5); L.dot = L.pattern === 'spots' ? mix(L.fur, L.spot, 0.3) : L.fur; });
+LOOKS.forEach(L => { L.mid = mix(L.fur, L.dark, 0.5); L.dot = L.pattern === 'spots' ? mix(L.fur, L.spot, 0.3) : L.fur; L.sz = L.sz || 1; L.ears = L.ears || 'floppy'; L.tail = L.tail || 'wag'; });
 const COLLARS = ['#e53935', '#1e88e5', '#43a047', '#fb8c00', '#8e24aa', '#00acc1', '#ff6fa3', '#fdd835'];
 
 // ============================================================ PUPPY DRAWING
@@ -123,6 +134,21 @@ function leg(g, x, top, len, color) {
   g.strokeStyle = color; g.lineWidth = 5.5; g.lineCap = 'round';
   g.beginPath(); g.moveTo(x, top + 2.5); g.lineTo(x, top + len - 2.7); g.stroke();
 }
+// an ellipse with a scalloped edge: shaggy fur
+function fluff(g, x, y, rx, ry, color, n) {
+  g.fillStyle = color; g.beginPath(); g.ellipse(x, y, rx, ry, 0, 0, TAU);
+  const rr = Math.min(rx, ry) * 0.24;
+  for (let i = 0; i < n; i++) {
+    const a = i / n * TAU + (i % 2) * 0.1, px = x + Math.cos(a) * rx * 0.96, py = y + Math.sin(a) * ry * 0.96;
+    g.moveTo(px + rr, py); g.arc(px, py, rr * (0.8 + (i % 3) * 0.15), 0, TAU);
+  }
+  g.fill();
+}
+function pointyEar(g, x, y, dir, color, inner) {
+  // triangle standing up from (x, y) on the head; dir tilts the tip back
+  g.fillStyle = color; g.beginPath(); g.moveTo(x - 3.2, y + 1); g.lineTo(x + 3.2, y + 1); g.lineTo(x + dir * 1.8, y - 8.5); g.closePath(); g.fill();
+  g.fillStyle = inner; g.beginPath(); g.moveTo(x - 1.5, y + 0.5); g.lineTo(x + 1.5, y + 0.5); g.lineTo(x + dir * 1.2, y - 5.5); g.closePath(); g.fill();
+}
 function drawPuppy(g, L, poseName, o) {
   const Gm = GEOM[poseName];
   const wag = o.wag || 0, ex = o.ex || 0, ey = o.ey || 0;
@@ -130,16 +156,23 @@ function drawPuppy(g, L, poseName, o) {
   const [hx, hy, hr] = Gm.head;
   // tail
   const [tx, ty, ta] = Gm.tail; const a = ta + wag;
-  g.strokeStyle = L.dark; g.lineWidth = 4; g.lineCap = 'round';
-  g.beginPath(); g.moveTo(tx, ty);
-  g.quadraticCurveTo(tx - 5 * Math.cos(a), ty - 5 * Math.sin(a) - 2.5, tx - 10 * Math.cos(a), ty - 10 * Math.sin(a));
-  g.stroke();
+  g.strokeStyle = L.dark; g.lineWidth = L.shaggy ? 5 : 4; g.lineCap = 'round';
+  if (L.tail === 'curl' && poseName !== 'sleep') {
+    // a curly tail over the back
+    g.beginPath(); g.arc(tx - 1, ty - 6 + wag * 2, 4.5, Math.PI * 0.5, Math.PI * 1.9); g.stroke();
+  } else {
+    g.beginPath(); g.moveTo(tx, ty);
+    g.quadraticCurveTo(tx - 5 * Math.cos(a), ty - 5 * Math.sin(a) - 2.5, tx - 10 * Math.cos(a), ty - 10 * Math.sin(a));
+    g.stroke();
+  }
   // far ear
-  ell(g, hx - 7.5, hy + 2, 3.2, 6.2, -0.25, L.dark);
+  if (L.ears === 'pointy') pointyEar(g, hx + 2, hy - 7, 1, L.dark, mix(L.dark, '#ffb3c6', 0.5));
+  else ell(g, hx - 7.5, hy + 2, 3.2, 6.2, -0.25, L.dark);
   // back legs
   if (Gm.legs.length === 4) { leg(g, Gm.legs[0][0], Gm.legs[0][1], Gm.legs[0][2], L.mid); leg(g, Gm.legs[1][0], Gm.legs[1][1], Gm.legs[1][2], L.mid); }
   // body
-  ell(g, bx, by, brx, bry, 0, L.fur);
+  if (L.shaggy) fluff(g, bx, by, brx, bry, L.fur, 18); else ell(g, bx, by, brx, bry, 0, L.fur);
+  if (L.pattern === 'saddle') ell(g, bx - 2, by - 3.5, 9.5, 5, 0, L.dark);
   if (L.pattern === 'patch') ell(g, bx - 2, by - 4, 7, 4, 0, L.dark);
   if (L.pattern === 'belly') ell(g, bx + 2, by + 4, 8, 3.8, 0, L.light);
   if (L.pattern === 'mask') ell(g, bx - 1, by - 4, 9, 4, 0, L.dark);
@@ -157,12 +190,14 @@ function drawPuppy(g, L, poseName, o) {
     circ(g, Gm.collar[0] + 1.6, Gm.collar[1] + 6.2, 1.4, '#ffd54f');
   }
   // head
-  circ(g, hx, hy, hr, L.fur);
+  if (L.shaggy) fluff(g, hx, hy, hr, hr, L.fur, 14); else circ(g, hx, hy, hr, L.fur);
   if (L.pattern === 'mask') { ell(g, hx - 1, hy - 4, 8.5, 5.5, 0, L.dark); circ(g, hx + 4, hy + 2, 6, L.light); }
+  if (L.pattern === 'saddle') ell(g, hx + 5, hy + 1.5, 6, 4.5, 0, L.dark);
   if (L.pattern === 'spots') circ(g, hx - 2, hy - 4, 1.7, L.spot);
   if (L.pattern === 'patch') ell(g, hx - 2, hy - 5, 6, 4, 0, L.dark);
   // near ear
-  ell(g, hx - 4.5, hy + 1, 3.6, 7, -0.3, L.dark);
+  if (L.ears === 'pointy') pointyEar(g, hx - 4, hy - 6, -1, L.dark, mix(L.dark, '#ffb3c6', 0.5));
+  else ell(g, hx - 4.5, hy + 1, 3.6, 7, -0.3, L.dark);
   // snout, nose, mouth
   ell(g, hx + 6.5, hy + 2.5, 5.2, 3.9, 0, L.light);
   circ(g, hx + 10, hy + 0.8, 1.9, '#2b1a12');
@@ -212,12 +247,15 @@ function makePuppies() {
     const r = mulberry32(1000 + i * 7919);
     puppies[i] = {
       i, x: rnd(MARGIN + 20, WORLD.w - MARGIN - 20), y: rnd(MARGIN + 20, WORLD.h - MARGIN - 20), vx: 0, vy: 0,
-      look: (r() * LOOKS.length) | 0, size: 0.85 + r() * 0.3, name: shuffledNames[i % shuffledNames.length],
+      look: 0, size: 1, name: shuffledNames[i % shuffledNames.length],
       collar: COLLARS[(r() * COLLARS.length) | 0], facing: r() < 0.5 ? 1 : -1,
       state: 'idle', t: r() * 4, tx: 0, ty: 0, obj: null, petted: pettedStr[i] === '1',
       anim: r() * 10, wag: r() * TAU, idlePose: r() < 0.4 ? 'sit' : 'stand', lastPet: -9, fx: 0, fy: 0
     };
-    puppies[i].r = 13 * puppies[i].size;
+    const p = puppies[i];
+    p.look = (r() * LOOKS.length) | 0;
+    p.size = LOOKS[p.look].sz * (0.8 + r() * 0.4);   // breed size times individual variation: roughly 0.5x to 1.6x
+    p.r = 13 * p.size;
   }
 }
 function savePetted() { let s = ''; for (let i = 0; i < N; i++) s += puppies[i].petted ? '1' : '0'; store.set('petted', s); }
@@ -1099,5 +1137,5 @@ if (params.get('intro') === '0') {
 }
 requestAnimationFrame(frame);
 // small debug handle (used by the headless tests)
-window.TKP = { puppies, cam, camT, startFormation, endFormation, dropTreat, throwBall, get stats() { return stats; }, get petted() { return pettedCount; }, get ball() { return ball; }, get formation() { return formation; } };
+window.TKP = { puppies, cam, camT, startFormation, endFormation, dropTreat, throwBall, LOOKS, POSES, drawPuppy, get stats() { return stats; }, get petted() { return pettedCount; }, get ball() { return ball; }, get formation() { return formation; } };
 })();
