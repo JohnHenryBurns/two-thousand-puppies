@@ -299,7 +299,7 @@ function resize() {
 }
 window.addEventListener('resize', resize);
 const isPetMode = () => cam.zoom >= PET_ZOOM;
-function playerPos() { return toWorld(W / 2, H - 90); }
+function playerPos() { return toWorld(W / 2, H - HUD_BOTTOM - 70); }
 
 // ============================================================ GAME STATE
 let stats = { treats: 0, throws: 0, fetches: 0 };
