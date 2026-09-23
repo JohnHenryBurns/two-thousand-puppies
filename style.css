@@ -37,6 +37,7 @@ html, body {
   transition: opacity .25s, transform .25s; opacity: 1;
 }
 #card.hidden { opacity: 0; transform: translateX(-50%) translateY(-10px); pointer-events: none; }
+#card { transition: opacity .25s, transform .25s, visibility .25s; }
 #card .name { font-size: 24px; font-weight: 700; color: var(--brown); }
 #card .day { font-size: 14px; }
 #card .day b { color: var(--pink); }
@@ -78,19 +79,32 @@ html, body {
 #toolbar button.active { background: var(--yellow); color: #5a3d00; }
 #toolbar button.on { background: #ffe3ee; }
 
-#surprise-menu {
+/* pop-up menus above the toolbar (Play, Surprise, More) */
+.menu {
   position: absolute; bottom: 84px; left: 50%; transform: translateX(-50%);
   background: var(--panel); border-radius: 20px; padding: 8px;
   display: flex; flex-direction: column; gap: 6px; box-shadow: 0 6px 20px rgba(0,0,0,.25);
   transition: opacity .2s, transform .2s;
 }
-#surprise-menu.hidden { opacity: 0; visibility: hidden; pointer-events: none; transform: translateX(-50%) translateY(10px); }
-#surprise-menu.hidden button { pointer-events: none; }
-#surprise-menu button {
+.menu.hidden { opacity: 0; visibility: hidden; pointer-events: none; transform: translateX(-50%) translateY(10px); }
+.menu.hidden button { pointer-events: none; }
+.menu button {
   border: 0; background: #fff; border-radius: 14px; padding: 12px 18px; font-size: 18px; font-weight: 600;
-  cursor: pointer; text-align: left; color: var(--brown);
+  cursor: pointer; text-align: left; color: var(--brown); display: flex; align-items: center; gap: 8px; white-space: nowrap;
 }
-#surprise-menu button:hover { background: #fff3f8; }
+.menu button small { font-weight: 400; font-size: 13px; color: #888; margin-left: auto; padding-left: 12px; }
+.menu button:hover { background: #fff3f8; }
+.menu button.active { background: var(--yellow); }
+
+/* puppy commands on the card */
+#card .cmds { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; margin-top: 8px; }
+#card .cmds button {
+  border: 0; border-radius: 12px; background: #fff0f5; color: var(--brown); font-weight: 600; font-size: 14px;
+  padding: 7px 11px; cursor: pointer;
+}
+#card .cmds button:hover { background: var(--yellow); }
+#card.hidden { visibility: hidden; }
+#card.hidden button { pointer-events: none; }
 
 #minimap {
   position: absolute; right: 10px; bottom: max(10px, env(safe-area-inset-bottom));
@@ -152,7 +166,8 @@ details.parents input { font-family: var(--font); font-size: 16px; padding: 4px 
   #toolbar button { width: 46px; height: 46px; border-radius: 13px; }
   #toolbar button span { font-size: 21px; }
   #toolbar button small { font-size: 9px; }
-  #surprise-menu { bottom: 130px; }
+  .menu { bottom: 130px; }
+  .menu button small { display: none; }
   #topbar { left: 10px; min-width: 0; padding: 6px 10px; }
   #title { font-size: 14px; }
   #counter { font-size: 12px; }
@@ -172,8 +187,9 @@ details.parents input { font-family: var(--font); font-size: 16px; padding: 4px 
   #toolbar button { width: 42px; height: 42px; border-radius: 11px; }
   #toolbar button span { font-size: 22px; }
   #toolbar button small { display: none; }
-  #surprise-menu { bottom: 62px; flex-direction: row; flex-wrap: wrap; justify-content: center; max-width: 90vw; }
-  #surprise-menu button { font-size: 15px; padding: 8px 12px; }
+  .menu { bottom: 62px; flex-direction: row; flex-wrap: wrap; justify-content: center; max-width: 90vw; }
+  .menu button { font-size: 15px; padding: 8px 12px; }
+  .menu button small { display: none; }
   #topbar { top: 6px; left: 8px; min-width: 0; padding: 4px 10px; }
   #title { font-size: 13px; }
   #counter { font-size: 11px; }
@@ -203,3 +219,4 @@ details.parents input { font-family: var(--font); font-size: 16px; padding: 4px 
 #game.cur-call { cursor: url("data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20width%3D%2732%27%20height%3D%2732%27%3E%3Ctext%20x%3D%2716%27%20y%3D%2727%27%20font-size%3D%2726%27%20text-anchor%3D%27middle%27%3E%F0%9F%93%A3%3C%2Ftext%3E%3C%2Fsvg%3E") 16 16, pointer; }
 #game.cur-treat { cursor: url("data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20width%3D%2732%27%20height%3D%2732%27%3E%3Ctext%20x%3D%2716%27%20y%3D%2727%27%20font-size%3D%2726%27%20text-anchor%3D%27middle%27%3E%F0%9F%A6%B4%3C%2Ftext%3E%3C%2Fsvg%3E") 16 16, pointer; }
 #game.cur-ball { cursor: url("data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20width%3D%2732%27%20height%3D%2732%27%3E%3Ctext%20x%3D%2716%27%20y%3D%2727%27%20font-size%3D%2726%27%20text-anchor%3D%27middle%27%3E%F0%9F%8E%BE%3C%2Ftext%3E%3C%2Fsvg%3E") 16 16, pointer; }
+#game.cur-dance { cursor: url("data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20width%3D%2732%27%20height%3D%2732%27%3E%3Ctext%20x%3D%2716%27%20y%3D%2727%27%20font-size%3D%2726%27%20text-anchor%3D%27middle%27%3E%F0%9F%93%BB%3C%2Ftext%3E%3C%2Fsvg%3E") 16 16, pointer; }

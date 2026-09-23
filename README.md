@@ -17,10 +17,12 @@ Plain HTML, CSS and JavaScript. No build step, no dependencies beyond a Google F
 Visit [johnhenryburns.github.io/two-thousand-puppies](https://johnhenryburns.github.io/two-thousand-puppies/), or open `index.html` in a browser.
 
 - **✋ Hand**: far away, wave through the crowd to shoo. Up close, tap a puppy to pet it.
-- **📣 Call**: press and hold, and the nearby puppies come running.
-- **🦴 Treat**: tap the grass to drop a treat.
-- **🎾 Ball**: tap to throw. The nearest puppy fetches it back to you.
+- **📣 Call**: press and hold, and the nearby puppies come running. Let go and they wander off again.
+- **🎁 Play** menu: a **🦴 Treat** (tap the grass to drop one), the **🎾 Ball** (tap to throw, the nearest puppy fetches it back), or a **📻 Dance party** (tap to put down a boombox; up to 40 nearby puppies bounce to the beat while notes float out of it, for 40 seconds or until you tap the boombox again).
+- **Commands**: tap a puppy and its card offers **Sit**, **Lie down**, **Roll over** and **Beg**.
 - **✨ Surprise**: all 2,000 puppies form a heart, spell her name, or line up in 20 blocks of 100.
+- **⋯ More**: sound on/off and the help screen.
+- Puppies occasionally take a potty break (a puddle or a poo with a few flies) that fades after a while.
 - Zoom with the scroll wheel, pinch, double-click, or the ➕ ➖ buttons. Drag the grass to look around. The minimap in the corner jumps anywhere.
 
 Petted puppies get a collar and count toward the "Petted x of 2000" progress bar, which is saved in the browser.

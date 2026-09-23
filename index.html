@@ -29,11 +29,10 @@
     <div class="group tools">
       <button class="tool active" data-tool="hand" title="Hand: shoo when far away, pet when close"><span>✋</span><small>Hand</small></button>
       <button class="tool" data-tool="call" title="Call: hold to call the puppies"><span>📣</span><small>Call</small></button>
-      <button class="tool" data-tool="treat" title="Treat: tap to drop a treat"><span>🦴</span><small>Treat</small></button>
-      <button class="tool" data-tool="ball" title="Ball: tap to throw the ball"><span>🎾</span><small>Ball</small></button>
+      <button id="btn-play" data-menu="play-menu" title="Things to play with"><span id="play-icon">🎁</span><small id="play-label">Play</small></button>
     </div>
     <div class="group">
-      <button id="btn-surprise" title="Surprise shapes"><span>✨</span><small>Surprise</small></button>
+      <button id="btn-surprise" data-menu="surprise-menu" title="Surprise shapes"><span>✨</span><small>Surprise</small></button>
     </div>
     <div class="group">
       <button id="btn-zoomout" title="Zoom out"><span>➖</span><small>Zoom</small></button>
@@ -41,16 +40,24 @@
       <button id="btn-all" title="See all the puppies"><span>🌍</span><small>All</small></button>
     </div>
     <div class="group">
-      <button id="btn-sound" title="Sound on/off"><span id="sound-icon">🔊</span><small>Sound</small></button>
-      <button id="btn-help" title="How to play"><span>❓</span><small>Help</small></button>
+      <button id="btn-more" data-menu="more-menu" title="Sound and help"><span>⋯</span><small>More</small></button>
     </div>
   </div>
 
-  <div id="surprise-menu" class="hidden">
+  <div id="play-menu" class="menu hidden">
+    <button data-tool="treat">🦴 Treat <small>tap to drop one</small></button>
+    <button data-tool="ball">🎾 Ball <small>tap to throw it</small></button>
+    <button data-tool="dance">📻 Dance party <small>tap to put down the boombox</small></button>
+  </div>
+  <div id="surprise-menu" class="menu hidden">
     <button data-form="heart">❤️ Make a heart</button>
     <button data-form="name" id="form-name">✨ Spell my name</button>
     <button data-form="count">🔢 Count by 100s</button>
     <button data-form="free">🐾 Free play</button>
+  </div>
+  <div id="more-menu" class="menu hidden">
+    <button id="btn-sound"><span id="sound-icon">🔊</span> <span id="sound-label">Sound on</span></button>
+    <button id="btn-help">❓ How to play</button>
   </div>
 
   <canvas id="minimap" width="200" height="133"></canvas>
@@ -83,9 +90,10 @@
       <li><b>🔍 Zoom in</b> with two fingers, the scroll wheel, or the ➕ button to get close.</li>
       <li><b>✋ Up close</b>, tap a puppy to <b>pet</b> it. Drag on the grass to look around.</li>
       <li><b>📣 Call</b>: press and hold, and the puppies come running.</li>
-      <li><b>🦴 Treat</b>: tap to drop a treat. Somebody will eat it!</li>
-      <li><b>🎾 Ball</b>: tap to throw. A puppy will fetch it back to you.</li>
+      <li><b>🎁 Play</b>: pick a <b>🦴 Treat</b> (tap to drop one), the <b>🎾 Ball</b> (tap to throw, a puppy fetches it back), or a <b>📻 Dance party</b> (tap to put down the boombox and the puppies nearby dance).</li>
+      <li><b>Commands</b>: tap a puppy, then press <b>Sit</b>, <b>Lie down</b>, <b>Roll over</b> or <b>Beg</b> on its card.</li>
       <li><b>✨ Surprise</b>: watch all <span class="n">2,000</span> puppies make a shape.</li>
+      <li>Puppies sometimes need a potty break. Mind the flies. 🪰</li>
       <li>The little map in the corner shows all <span class="n">2,000</span> puppies. Tap it to jump there.</li>
     </ul>
     <h3>How big is <span class="n">2,000</span>?</h3>

@@ -129,8 +129,8 @@ const COLLARS = ['#e53935', '#1e88e5', '#43a047', '#fb8c00', '#8e24aa', '#00acc1
 
 // ============================================================ PUPPY DRAWING
 // Local units: body center at origin, ground at y = 13, faces +x.
-const POSES = ['stand', 'walk1', 'walk2', 'sit', 'happy', 'sleep', 'eat'];
-const P_STAND = 0, P_WALK1 = 1, P_WALK2 = 2, P_SIT = 3, P_HAPPY = 4, P_SLEEP = 5, P_EAT = 6;
+const POSES = ['stand', 'walk1', 'walk2', 'sit', 'happy', 'sleep', 'eat', 'beg', 'lie'];
+const P_STAND = 0, P_WALK1 = 1, P_WALK2 = 2, P_SIT = 3, P_HAPPY = 4, P_SLEEP = 5, P_EAT = 6, P_BEG = 7, P_LIE = 8;
 const GEOM = {
   stand: { body: [-3, 0, 13, 9], head: [10, -7, 9.5], legs: [[-10, 5, 8], [-4, 5, 8], [3, 5, 8], [8, 5, 8]], tail: [-14, -3, 0.9], eyes: 'open', collar: [4.5, -1] },
   walk1: { body: [-3, -1, 13, 9], head: [10, -8, 9.5], legs: [[-11, 4, 9], [-3, 4, 7], [2, 4, 7], [9, 4, 9]], tail: [-14, -4, 0.7], eyes: 'open', collar: [4.5, -2] },
@@ -138,7 +138,11 @@ const GEOM = {
   sit: { body: [-3, 2, 10, 10.5], haunch: [-8, 6, 6.5], head: [9, -9, 9.5], legs: [[2, 3, 10], [7, 3, 10]], tail: [-12, 9, 0.15], eyes: 'open', collar: [3.5, -1.5] },
   happy: { body: [-3, 2, 10, 10.5], haunch: [-8, 6, 6.5], head: [9, -9, 9.5], legs: [[2, 3, 10], [7, 3, 10]], tail: [-12, 9, 0.3], eyes: 'happy', blush: true, tongue: true, collar: [3.5, -1.5] },
   sleep: { body: [-2, 5, 14, 7], head: [11, 1, 9], legs: [[-10, 9, 4], [6, 9, 4]], tail: [-15, 7, -0.2], eyes: 'closed', collar: [5, 2] },
-  eat: { body: [-3, 0, 13, 9], head: [12, -2, 9.5], legs: [[-10, 5, 8], [-4, 5, 8], [3, 5, 8], [8, 5, 8]], tail: [-14, -3, 0.6], eyes: 'open', collar: [5, 0] }
+  eat: { body: [-3, 0, 13, 9], head: [12, -2, 9.5], legs: [[-10, 5, 8], [-4, 5, 8], [3, 5, 8], [8, 5, 8]], tail: [-14, -3, 0.6], eyes: 'open', collar: [5, 0] },
+  // begging: sitting up tall, front paws tucked up in front of the chest
+  beg: { body: [-2, 3, 8.5, 11], haunch: [-7, 8, 5.5], head: [6, -12, 9.5], legs: [[2, -2, 6], [7, -2, 6]], tail: [-9, 11, 0.4], eyes: 'open', tongue: true, collar: [2.5, -3] },
+  // lying down, awake
+  lie: { body: [-2, 5, 14, 7], head: [11, 1, 9], legs: [[-10, 9, 4], [6, 9, 4]], tail: [-15, 7, -0.2], eyes: 'open', collar: [5, 2] }
 };
 function ell(g, x, y, rx, ry, rot, color) { g.fillStyle = color; g.beginPath(); g.ellipse(x, y, rx, ry, rot, 0, TAU); g.fill(); }
 function circ(g, x, y, r, color) { g.fillStyle = color; g.beginPath(); g.arc(x, y, r, 0, TAU); g.fill(); }
@@ -312,7 +316,7 @@ function eachNear(x, y, r, fn) {
   }
 }
 // how easily a puppy gets nudged aside: sleepers don't budge, sitting ones barely do
-function mobility(p) { return p.state === 'sleep' ? 0 : (p.state === 'idle' || p.state === 'eat' || p.state === 'happy') ? 0.25 : 1; }
+function mobility(p) { return p.state === 'sleep' ? 0 : (p.state === 'idle' || p.state === 'eat' || p.state === 'happy' || p.state === 'potty' || p.state === 'trick' || p.state === 'dance') ? 0.25 : 1; }
 // Puppies like a little breathing room: every neighbour closer than COMFORT adds "crowd pressure" (p.px, p.py)
 // pointing away from it. Idle puppies that feel too much of it get up and walk off, walking puppies steer by it.
 // That is how a called-in pile loosens up again, from the outside in.
@@ -405,6 +409,13 @@ const parts = [];              // world-space particles
 const confetti = [];           // screen-space particles
 const callPoint = { type: 'point', x: 0, y: 0 };
 let calling = false;           // true while the Call tool is held: crowd pressure is ignored so the pile can form
+// dance party: a boombox on the grass, puppies nearby come and bounce to the beat
+const boombox = { on: false, x: 0, y: 0, t: 0, beat: 0, noteT: 0, recruitT: 0 };
+const DANCE_R = 330, DANCE_TIME = 40;
+// potty breaks: rare, and they fade after a while
+const messes = [];             // { kind: 'poo' | 'pee', x, y, life }
+const MESS_LIFE = 45, MESS_MAX = 25, MESS_RATE = 0.00016;   // per idle puppy per second: a handful a minute across 2,000 puppies
+let selected = null;           // the puppy whose card is showing (commands act on it)
 let intro = null;
 let visibleCount = 0;
 let now = 0;
@@ -435,6 +446,7 @@ function updatePuppy(p, dt) {
     case 'idle':
       p.t -= dt; damp(p, 8, dt);
       if (!calling && p.px * p.px + p.py * p.py > 40 * 40) { pickWander(p, p.px, p.py); break; }   // too crowded here
+      if (!formation && messes.length < MESS_MAX && Math.random() < dt * MESS_RATE) { p.state = 'potty'; p.t = 1.8; p.kind = Math.random() < 0.5 ? 'poo' : 'pee'; p.vx = p.vy = 0; break; }
       if (p.t <= 0) {
         if (Math.random() < 0.06 && now - p.lastPet > 10) { p.state = 'sleep'; p.t = rnd(6, 16); p.vx = p.vy = 0; }
         else pickWander(p);
@@ -455,12 +467,13 @@ function updatePuppy(p, dt) {
       break;
     case 'seek': {
       const o = p.obj;
-      if (!o || o.gone || (o.type === 'treat' && o.eaten) || (o.type === 'ball' && (ball.state === 'carried' || !ball.active))) { toIdle(p, 0.5); break; }
+      if (!o || o.gone || (o.type === 'treat' && o.eaten) || (o.type === 'ball' && (ball.state === 'carried' || !ball.active)) || (o.type === 'dance' && !boombox.on)) { toIdle(p, 0.5); break; }
       const dx = o.x - p.x, dy = o.y - p.y, d = Math.hypot(dx, dy);
-      const arrive = o.type === 'point' ? 26 : o.type === 'treat' ? 13 : 15;
+      const arrive = o.type === 'point' ? 26 : o.type === 'treat' ? 13 : o.type === 'dance' ? 8 : 15;
       if (d < arrive) {
         if (o.type === 'treat') { o.eaten = true; p.state = 'eat'; p.t = 1.7; p.vx = p.vy = 0; if (dx < 0) p.facing = -1; else p.facing = 1; sfx.crunch(); }
         else if (o.type === 'ball') { if (ball.z < 25) pickUpBall(p); else damp(p, 6, dt); }
+        else if (o.type === 'dance') { p.state = 'dance'; p.dance = Math.random(); p.vx = p.vy = 0; p.obj = null; p.facing = p.x < boombox.x ? 1 : -1; }
         else toIdle(p, rnd(0.4, 1));
         break;
       }
@@ -478,6 +491,29 @@ function updatePuppy(p, dt) {
       p.t -= dt; damp(p, 6, dt);
       if (p.t <= 0) toIdle(p);
       break;
+    case 'potty':
+      p.t -= dt; damp(p, 8, dt);
+      if (p.t <= 0) {
+        messes.push({ kind: p.kind, x: p.x - p.facing * 14, y: p.y + 10, life: MESS_LIFE });
+        if (messes.length > MESS_MAX) messes.shift();
+        pickWander(p);
+      }
+      break;
+    case 'dance':
+      if (!boombox.on) { toIdle(p); break; }
+      p.dance += dt; damp(p, 6, dt);
+      p.facing = ((p.dance * 2) | 0) & 1 ? -1 : 1;   // turn around on every beat
+      break;
+    case 'trick': {
+      p.t -= dt; damp(p, 8, dt);
+      const el = p.tmax - p.t;
+      p.rot = p.trick === 'roll' && el < 1.4 ? (el / 1.4) * TAU * p.facing : 0;
+      if (p.t <= 0) {
+        p.rot = 0; p.state = 'happy'; p.t = 2; spawnHearts(p, 2); sfx.yip();
+        if (selected === p) showCard(p, 8000, 'Good ' + { sit: 'sit', lie: 'lie down', roll: 'roll', beg: 'beg' }[p.trick] + ', ' + p.name + '! 🎉');
+      }
+      break;
+    }
     case 'sleep':
       p.t -= dt; damp(p, 12, dt);
       if (Math.random() < dt * 0.7) spawnZz(p);
@@ -511,7 +547,9 @@ function updatePuppy(p, dt) {
 function poseOf(p) {
   if (p.state === 'sleep') return P_SLEEP;
   if (p.state === 'eat') return P_EAT;
-  if (p.state === 'happy') return P_HAPPY;
+  if (p.state === 'happy' || p.state === 'dance') return P_HAPPY;
+  if (p.state === 'potty') return P_SIT;
+  if (p.state === 'trick') return p.trick === 'beg' ? P_BEG : p.trick === 'sit' ? P_SIT : P_LIE;
   if (Math.hypot(p.vx, p.vy) > 8) return P_WALK1 + ((p.anim | 0) & 1);
   if (p.state === 'idle' && p.idlePose === 'sit') return P_SIT;
   if (p.state === 'form' && p.i % 3 === 0) return P_SIT;
@@ -557,7 +595,60 @@ function pet(p, first) {
   if (!p.petted) {
     p.petted = true; pettedCount++; savePetted(); updateCounter(); checkMilestone();
   }
-  if (first) { showCard(p, 3500); sfx.yip(); }
+  if (first) { showCard(p, 8000); sfx.yip(); }
+}
+// commands from the puppy's card
+function doTrick(p, trick) {
+  if (!p || p.state === 'carry') return;
+  releaseFormation();
+  if (p.state === 'dance' || (p.state === 'seek' && p.obj && p.obj.type === 'dance')) p.obj = null;
+  p.state = 'trick'; p.trick = trick; p.t = trick === 'roll' ? 2.2 : trick === 'lie' ? 4 : 3; p.tmax = p.t;
+  p.vx = p.vy = 0; p.rot = 0; p.obj = null;
+  sfx.pop(); showCard(p, 8000);
+}
+// dance party
+function placeBoombox(x, y) {
+  releaseFormation();
+  if (boombox.on && dist(x, y, boombox.x, boombox.y) < 40) { stopBoombox(); return; }   // tap the boombox to switch it off
+  if (boombox.on) stopBoombox();
+  boombox.on = true; boombox.x = x; boombox.y = y; boombox.t = DANCE_TIME; boombox.beat = 0; boombox.recruitT = 0; boombox.noteT = 0;
+  stats.dances = (stats.dances || 0) + 1; saveStats();
+  sfx.startMusic();
+}
+function stopBoombox() {
+  if (!boombox.on) return;
+  boombox.on = false; sfx.stopMusic();
+  for (const p of puppies) if (p.state === 'dance' || (p.state === 'seek' && p.obj && p.obj.type === 'dance')) toIdle(p, rnd(0.2, 1.5));
+}
+const DANCE_MAX = 40;   // dancers at a time, so the floor stays a ring around the boombox rather than a pile on it
+function recruitDancers() {
+  let dancing = 0;
+  for (const p of puppies) if (p.state === 'dance' || (p.state === 'seek' && p.obj && p.obj.type === 'dance')) dancing++;
+  if (dancing >= DANCE_MAX) return;
+  const cands = [];
+  eachNear(boombox.x, boombox.y, DANCE_R, (p, d) => { if (isFree(p)) cands.push([d, p]); });
+  cands.sort((a, b) => a[0] - b[0]);
+  for (const [, p] of cands.slice(0, DANCE_MAX - dancing)) {
+    // everyone gets their own spot on the ring around the boombox
+    const a = Math.atan2(p.y - boombox.y, p.x - boombox.x) + rnd(-0.6, 0.6), r = rnd(50, 200);
+    p.obj = { type: 'dance', x: clamp(boombox.x + Math.cos(a) * r, MARGIN, WORLD.w - MARGIN), y: clamp(boombox.y + Math.sin(a) * r, MARGIN, WORLD.h - MARGIN) };
+    p.state = 'seek'; p.t = 10;
+  }
+}
+function updateBoombox(dt) {
+  if (!boombox.on) return;
+  boombox.t -= dt; boombox.beat += dt * 2;   // 120 bpm
+  boombox.recruitT -= dt; if (boombox.recruitT <= 0) { recruitDancers(); boombox.recruitT = 1.5; }
+  boombox.noteT -= dt;
+  if (boombox.noteT <= 0) {
+    boombox.noteT = 0.28;
+    parts.push({ kind: 'note', x: boombox.x + rnd(-10, 10), y: boombox.y - 12, vx: rnd(-12, 12), vy: rnd(-42, -28), life: 1.8, max: 1.8,
+      c: ['#ff6fa3', '#4fc3f7', '#ffd54f', '#ba68c8', '#81c784'][(Math.random() * 5) | 0], ch: Math.random() < 0.5 ? '♪' : '♫', ph: Math.random() * TAU });
+  }
+  if (boombox.t <= 0) stopBoombox();
+}
+function updateMesses(dt) {
+  for (let i = messes.length - 1; i >= 0; i--) { messes[i].life -= dt; if (messes[i].life <= 0) messes.splice(i, 1); }
 }
 function dropTreat(x, y) {
   releaseFormation();
@@ -731,6 +822,16 @@ const sfx = (() => {
     if (ac && ac.state === 'suspended') ac.resume();
     return ac;
   }
+  let seq = null, seqStep = 0, seqNext = 0;
+  const BASS = [110, 0, 110, 0, 146.8, 0, 110, 0, 130.8, 0, 110, 0, 98, 0, 110, 0];
+  const LEAD = [440, 0, 523, 0, 587, 0, 523, 0, 440, 0, 392, 0, 440, 0, 0, 0];
+  function musicStep(s, d) {
+    if (s % 4 === 0) tone(160, 45, 0.16, 'sine', 0.35, d);            // kick
+    if (s % 8 === 4) tone(900, 200, 0.12, 'triangle', 0.12, d);       // snare-ish
+    if (s % 4 === 2) tone(7000, 3000, 0.04, 'square', 0.025, d);      // hat
+    if (BASS[s]) tone(BASS[s], BASS[s] * 0.98, 0.2, 'sawtooth', 0.06, d);
+    if (LEAD[s]) tone(LEAD[s], LEAD[s], 0.18, 'triangle', 0.06, d);
+  }
   function tone(f0, f1, dur, type, vol, delay) {
     const a = actx(); if (!a || muted) return;
     const t = a.currentTime + (delay || 0);
@@ -748,6 +849,16 @@ const sfx = (() => {
     crunch() { tone(140, 70, 0.08, 'square', 0.06); tone(140, 70, 0.08, 'square', 0.06, 0.13); },
     chime() { [523, 659, 784, 1047].forEach((f, i) => tone(f, f * 1.001, 0.4, 'sine', 0.12, i * 0.11)); },
     fanfare() { [523, 659, 784, 1047, 784, 1047, 1319].forEach((f, i) => tone(f, f * 1.001, 0.3, 'triangle', 0.1, i * 0.14)); },
+    // the boombox: a little 16-step loop at 120 bpm, scheduled a beat ahead
+    startMusic() {
+      const a = actx(); if (!a || seq) return;
+      seqStep = 0; seqNext = a.currentTime + 0.05;
+      seq = setInterval(() => {
+        const a2 = actx(); if (!a2) return;
+        while (seqNext < a2.currentTime + 0.3) { musicStep(seqStep, Math.max(0, seqNext - a2.currentTime)); seqStep = (seqStep + 1) % 16; seqNext += 0.125; }
+      }, 80);
+    },
+    stopMusic() { if (seq) clearInterval(seq); seq = null; },
     get muted() { return muted; }, set muted(v) { muted = v; store.set('muted', v ? '1' : '0'); }
   };
 })();
@@ -818,6 +929,7 @@ function endPointer(e) {
     const x = clamp(w.x, MARGIN, WORLD.w - MARGIN), y = clamp(w.y, MARGIN, WORLD.h - MARGIN);
     if (tool === 'treat') dropTreat(x, y);
     else if (tool === 'ball') throwBall(x, y);
+    else if (tool === 'dance') placeBoombox(x, y);
   }
   // a plain click/tap on the grass with the hand (no drag, no pinch) also counts as using it
   if (gesture && gesture.type === 'pan' && !pt.moved && pointers.size === 1 && tool === 'hand') releaseFormation();
@@ -853,7 +965,7 @@ window.addEventListener('keydown', e => {
   else if (e.key === '+' || e.key === '=') zoomAt(W / 2, H / 2, camT.zoom * 1.4, false);
   else if (e.key === '-' || e.key === '_') zoomAt(W / 2, H / 2, camT.zoom / 1.4, false);
   else if (e.key === '1') setTool('hand'); else if (e.key === '2') setTool('call');
-  else if (e.key === '3') setTool('treat'); else if (e.key === '4') setTool('ball');
+  else if (e.key === '3') setTool('treat'); else if (e.key === '4') setTool('ball'); else if (e.key === '5') setTool('dance');
   else if (e.key === 'Escape') { closeMenu(); $('help').classList.add('hidden'); }
 });
 // the mouse cursor matches the tool (see the cur-* rules in style.css)
@@ -880,27 +992,44 @@ mini.addEventListener('pointerup', () => { miniDown = false; });
 mini.addEventListener('pointercancel', () => { miniDown = false; });
 
 // ============================================================ HUD
+// Toolbar: Hand and Call are top-level; Treat, Ball and Dance live in the Play menu, whose button shows the chosen one.
+const PLAY_TOOLS = { treat: ['🦴', 'Treat'], ball: ['🎾', 'Ball'], dance: ['📻', 'Dance'] };
 function setTool(t) {
   tool = t;
   document.querySelectorAll('#toolbar .tool').forEach(b => b.classList.toggle('active', b.dataset.tool === t));
+  const play = PLAY_TOOLS[t];
+  $('btn-play').classList.toggle('active', !!play);
+  if (play) { $('play-icon').textContent = play[0]; $('play-label').textContent = play[1]; }
+  document.querySelectorAll('#play-menu button').forEach(b => b.classList.toggle('active', b.dataset.tool === t));
   updateCursor();
 }
-document.querySelectorAll('#toolbar .tool').forEach(b => b.addEventListener('click', () => { sfx.unlock(); setTool(b.dataset.tool); closeMenu(); }));
+document.querySelectorAll('[data-tool]').forEach(b => b.addEventListener('click', () => { sfx.unlock(); setTool(b.dataset.tool); closeMenu(); }));
+// pop-up menus: a button with data-menu toggles its menu; opening one closes the others
+function closeMenu() { document.querySelectorAll('.menu').forEach(m => m.classList.add('hidden')); }
+document.querySelectorAll('[data-menu]').forEach(b => b.addEventListener('click', () => {
+  sfx.unlock();
+  const m = $(b.dataset.menu), wasOpen = !m.classList.contains('hidden');
+  closeMenu();
+  if (!wasOpen) m.classList.remove('hidden');
+}));
 $('btn-zoomin').addEventListener('click', () => { if (intro) skipIntro(); zoomAt(W / 2, H / 2, camT.zoom * 1.6, false); });
 $('btn-zoomout').addEventListener('click', () => { if (intro) skipIntro(); zoomAt(W / 2, H / 2, camT.zoom / 1.6, false); });
 $('btn-all').addEventListener('click', () => { if (intro) return; camT.zoom = minZoom(); camT.x = WORLD.w / 2; camT.y = WORLD.h / 2; clampCam(camT); });
-$('btn-surprise').addEventListener('click', () => { sfx.unlock(); $('surprise-menu').classList.toggle('hidden'); });
-function closeMenu() { $('surprise-menu').classList.add('hidden'); }
 document.querySelectorAll('#surprise-menu button').forEach(b => b.addEventListener('click', () => {
   closeMenu(); if (intro) return;
   if (b.dataset.form === 'free') endFormation(); else startFormation(b.dataset.form);
 }));
 $('btn-sound').addEventListener('click', () => { sfx.muted = !sfx.muted; updateSoundIcon(); if (!sfx.muted) { sfx.unlock(); sfx.pop(); } });
-function updateSoundIcon() { $('sound-icon').textContent = sfx.muted ? '🔇' : '🔊'; }
+function updateSoundIcon() { $('sound-icon').textContent = sfx.muted ? '🔇' : '🔊'; $('sound-label').textContent = sfx.muted ? 'Sound off' : 'Sound on'; }
 $('btn-help').addEventListener('click', () => {
   closeMenu();
-  $('help-stats').textContent = 'Treats given: ' + stats.treats + ' · Balls thrown: ' + stats.throws + ' · Fetches: ' + stats.fetches;
+  $('help-stats').textContent = 'Treats given: ' + stats.treats + ' · Balls thrown: ' + stats.throws + ' · Fetches: ' + stats.fetches + ' · Dance parties: ' + (stats.dances || 0);
   $('help').classList.remove('hidden');
+});
+// commands on the puppy card
+$('card').addEventListener('click', e => {
+  const b = e.target.closest('button[data-cmd]');
+  if (b && selected) { sfx.unlock(); doTrick(selected, b.dataset.cmd); }
 });
 $('btn-close-help').addEventListener('click', () => $('help').classList.add('hidden'));
 $('btn-replay').addEventListener('click', () => { $('help').classList.add('hidden'); endFormation(); startIntro(); });
@@ -918,8 +1047,10 @@ let cardTimer = 0;
 function showCard(p, ms, override) {
   const n = p.i + 1;
   const dayLine = n === 1 ? 'for <b>day 1</b> — the day you were born!' : 'for <b>day ' + fmtNum(n) + '</b> of your life';
+  selected = p;
   $('card').innerHTML = (override ? '<div class="name">' + override + '</div>' : '<div class="name">' + p.name + '</div>') +
-    '<div class="day">Puppy <b>#' + fmtNum(n) + '</b>, ' + dayLine + '<br>' + fmtDate(dayDate(n)) + (p.petted ? ' · 💗 petted' : '') + '</div>';
+    '<div class="day">Puppy <b>#' + fmtNum(n) + '</b>, ' + dayLine + '<br>' + fmtDate(dayDate(n)) + (p.petted ? ' · 💗 petted' : '') + '</div>' +
+    '<div class="cmds"><button data-cmd="sit">Sit 🐕</button><button data-cmd="lie">Lie down 🛏️</button><button data-cmd="roll">Roll over 🔄</button><button data-cmd="beg">Beg 🙏</button></div>';
   $('card').classList.remove('hidden');
   clearTimeout(cardTimer);
   if (ms) cardTimer = setTimeout(() => $('card').classList.add('hidden'), ms);
@@ -1080,6 +1211,38 @@ function render() {
     ctx.beginPath(); ctx.rect(t.x - 6, t.y - 2.2, 12, 4.4); ctx.fill(); ctx.stroke();
     for (const s of [-1, 1]) { ctx.beginPath(); ctx.arc(t.x + s * 6, t.y - 2.3, 2.6, 0, TAU); ctx.arc(t.x + s * 6, t.y + 2.3, 2.6, 0, TAU); ctx.fill(); ctx.stroke(); }
   }
+  // potty breaks (with flies)
+  if (z > 0.45) for (const m of messes) {
+    if (m.x < vx0 || m.x > vx1 || m.y < vy0 || m.y > vy1) continue;
+    const a = Math.min(1, m.life / 5);
+    if (m.kind === 'pee') { ctx.globalAlpha = a * 0.55; ctx.fillStyle = '#ffe14d'; ctx.beginPath(); ctx.ellipse(m.x, m.y, 9, 5, 0, 0, TAU); ctx.fill(); }
+    else {
+      ctx.globalAlpha = a; ctx.fillStyle = '#6d4c2a'; ctx.strokeStyle = '#4e3418'; ctx.lineWidth = 0.8;
+      for (const [dx, dy, r] of [[0, 0, 5], [0.3, -3.3, 3.8], [0.8, -6, 2.4]]) { ctx.beginPath(); ctx.ellipse(m.x + dx, m.y + dy, r, r * 0.7, 0, 0, TAU); ctx.fill(); ctx.stroke(); }
+    }
+    ctx.globalAlpha = a; ctx.fillStyle = '#222';
+    const nf = m.kind === 'poo' ? 3 : 1;
+    for (let i = 0; i < nf; i++) {
+      const fx = m.x + Math.cos(now * 6 + i * 2.1 + m.x) * 9, fy = m.y - 9 + Math.sin(now * 9.3 + i * 1.7) * 4;
+      ctx.fillRect(fx - 0.8, fy - 0.8, 1.6, 1.6);
+    }
+    ctx.globalAlpha = 1;
+  }
+  // boombox
+  if (boombox.on) {
+    const pulse = 1 + 0.07 * Math.abs(Math.sin(boombox.beat * Math.PI));
+    ctx.fillStyle = 'rgba(0,0,0,0.18)'; ctx.beginPath(); ctx.ellipse(boombox.x, boombox.y + 11, 18, 5, 0, 0, TAU); ctx.fill();
+    ctx.save(); ctx.translate(boombox.x, boombox.y); ctx.scale(pulse, pulse);
+    ctx.fillStyle = '#37474f'; ctx.fillRect(-17, -10, 34, 20);
+    ctx.strokeStyle = '#263238'; ctx.lineWidth = 1.5; ctx.strokeRect(-17, -10, 34, 20);
+    ctx.beginPath(); ctx.arc(0, -10, 8, Math.PI, TAU); ctx.stroke();                   // handle
+    for (const sx of [-9, 9]) {
+      ctx.fillStyle = '#90a4ae'; ctx.beginPath(); ctx.arc(sx, 1, 6.2, 0, TAU); ctx.fill();
+      ctx.fillStyle = '#263238'; ctx.beginPath(); ctx.arc(sx, 1, 3.5 * pulse, 0, TAU); ctx.fill();
+    }
+    ctx.fillStyle = '#80cbc4'; ctx.fillRect(-4, -8, 8, 4);                            // cassette window
+    ctx.restore();
+  }
   // ball shadow
   if (ball.active) { ctx.fillStyle = 'rgba(0,0,0,0.18)'; ctx.beginPath(); ctx.ellipse(ball.x, ball.y + 4, 7 * (1 - ball.z / 600), 3.5 * (1 - ball.z / 600), 0, 0, TAU); ctx.fill(); }
 
@@ -1118,8 +1281,16 @@ function render() {
       const sx = ox + p.x * z, sy = oy + p.y * z;
       const pose = poseOf(p);
       const lv = sprites[p.look][pose][p.facing < 0 ? 1 : 0];
-      ctx.drawImage(px >= 72 ? lv[0] : px >= 36 ? lv[1] : lv[2], sx - SPR_OX * k, sy - SPR_OY * k, px, px);
-      if (p.petted && s > 0.5) {
+      const img = px >= 72 ? lv[0] : px >= 36 ? lv[1] : lv[2];
+      if (p.rot) {   // rolling over: spin the sprite about the body centre
+        ctx.setTransform(dpr, 0, 0, dpr, sx, sy); ctx.rotate(p.rot);
+        ctx.drawImage(img, -SPR_OX * k, -SPR_OY * k, px, px);
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        continue;
+      }
+      const hop = p.state === 'dance' ? Math.abs(Math.sin(p.dance * TAU)) * 5 * s : 0;
+      ctx.drawImage(img, sx - SPR_OX * k, sy - SPR_OY * k - hop, px, px);
+      if (p.petted && s > 0.5 && !hop) {
         // the collar as it looks up close: only the band under the chin shows (the head hides the rest), plus the tag
         const c = GEOM[POSES[pose]].collar, cx = sx + c[0] * s * p.facing, cy = sy + c[1] * s, rot = -0.35 * p.facing;
         ctx.fillStyle = p.collar; ctx.beginPath(); ctx.ellipse(cx, cy, 2.8 * s, 6.8 * s, rot, Math.PI * 0.12, Math.PI * 0.88); ctx.closePath(); ctx.fill();
@@ -1130,9 +1301,12 @@ function render() {
   } else {
     for (const p of visible) {
       const s = z * p.size;
-      ctx.setTransform(dpr * s * p.facing, 0, 0, dpr * s, dpr * (ox + p.x * z), dpr * (oy + p.y * z));
+      const hop = p.state === 'dance' ? Math.abs(Math.sin(p.dance * TAU)) * 5 : 0;
+      ctx.setTransform(dpr * s * p.facing, 0, 0, dpr * s, dpr * (ox + p.x * z), dpr * (oy + (p.y - hop) * z));
+      if (p.rot) ctx.rotate(p.rot * p.facing);
+      else if (hop) ctx.rotate(Math.sin(p.dance * TAU) * 0.12);   // a little wiggle with each bounce
       const pose = POSES[poseOf(p)];
-      const o = { collar: p.petted ? p.collar : null, wag: Math.sin(p.wag) * (p.state === 'happy' ? 0.5 : 0.18) };
+      const o = { collar: p.petted ? p.collar : null, wag: Math.sin(p.wag) * (p.state === 'happy' || p.state === 'dance' ? 0.5 : 0.18) };
       if (pw && GEOM[pose].eyes === 'open') {
         const dx = pw.x - p.x, dy = pw.y - p.y, d = Math.hypot(dx, dy);
         if (d < 300 && d > 1) { const f = Math.min(1, 40 / d) * 0.9; o.ex = dx / d * f * p.facing; o.ey = dy / d * f; }
@@ -1160,6 +1334,12 @@ function render() {
       ctx.bezierCurveTo(q.x + s * 0.5, q.y - s, q.x + s, q.y - s * 0.3, q.x, q.y + s * 0.6); ctx.fill();
       ctx.globalAlpha = 1;
     } else if (q.kind === 'crumb') { ctx.fillStyle = q.c; ctx.fillRect(q.x - 1.2, q.y - 1.2, 2.4, 2.4); }
+    else if (q.kind === 'note') {
+      ctx.globalAlpha = a; ctx.fillStyle = q.c; ctx.strokeStyle = 'rgba(0,0,0,0.35)'; ctx.lineWidth = 0.8;
+      ctx.font = '700 ' + Math.max(12, 9 / z) + 'px Fredoka, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      const nx = q.x + Math.sin(now * 5 + q.ph) * 4;
+      ctx.strokeText(q.ch, nx, q.y); ctx.fillText(q.ch, nx, q.y); ctx.globalAlpha = 1;
+    }
     else if (q.kind === 'zz') {
       ctx.globalAlpha = a; ctx.fillStyle = '#fff'; ctx.strokeStyle = 'rgba(0,0,0,0.5)'; ctx.lineWidth = 0.8;
       ctx.font = '700 ' + Math.max(10, 7 / z) + 'px Fredoka, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
@@ -1228,6 +1408,8 @@ function frame(t) {
   rebuildGrid();
   separate();
   updateBall(dt);
+  updateBoombox(dt);
+  updateMesses(dt);
   updateParts(dt);
   if (now < fireworksUntil && Math.random() < dt * 2.5) burstConfetti(rnd(W * 0.15, W * 0.85), rnd(H * 0.15, H * 0.5), 60, 400);
   render();
@@ -1263,5 +1445,5 @@ if (params.get('intro') === '0') {
 }
 requestAnimationFrame(frame);
 // small debug handle (used by the headless tests)
-window.TKP = { puppies, cam, camT, startFormation, endFormation, dropTreat, throwBall, LOOKS, POSES, drawPuppy, get stats() { return stats; }, get frameCost() { return frameCost; }, get petted() { return pettedCount; }, get ball() { return ball; }, get formation() { return formation; } };
+window.TKP = { puppies, cam, camT, startFormation, endFormation, dropTreat, throwBall, LOOKS, POSES, drawPuppy, setTool, doTrick, placeBoombox, boombox, messes, showCard, get stats() { return stats; }, get frameCost() { return frameCost; }, get petted() { return pettedCount; }, get ball() { return ball; }, get formation() { return formation; } };
 })();
