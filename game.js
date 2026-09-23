@@ -321,8 +321,14 @@ function mobility(p) { return p.state === 'sleep' ? 0 : (p.state === 'idle' || p
 // pointing away from it. Idle puppies that feel too much of it get up and walk off, walking puppies steer by it.
 // That is how a called-in pile loosens up again, from the outside in.
 const COMFORT = 44, COMFORT2 = COMFORT * COMFORT, CROWD = 150;
+const MESS_R = 48;   // nobody wants to stand this close to a potty spot
 function separate() {
   for (let i = 0; i < N; i++) { puppies[i].px = 0; puppies[i].py = 0; }
+  for (const m of messes) eachNear(m.x, m.y, MESS_R, (p, d) => {
+    if (d < 0.5) { p.px += rnd(-300, 300); p.py += rnd(-300, 300); return; }
+    const g = 420 * (1 - d / MESS_R);   // stronger than a crowded neighbour: yuck
+    p.px += (p.x - m.x) / d * g; p.py += (p.y - m.y) / d * g;
+  });
   for (let i = 0; i < N; i++) {
     const p = puppies[i];
     const mp = mobility(p);
@@ -435,10 +441,13 @@ function toIdle(p, t) {
 }
 function pickWander(p, awayX, awayY) {
   // with a direction given (crowd pressure), head roughly that way and a bit further than usual
-  const a = awayX !== undefined ? Math.atan2(awayY, awayX) + rnd(-0.6, 0.6) : Math.random() * TAU;
-  const d = awayX !== undefined ? rnd(60, 180) : rnd(30, 140);
-  p.tx = clamp(p.x + Math.cos(a) * d, MARGIN, WORLD.w - MARGIN);
-  p.ty = clamp(p.y + Math.sin(a) * d, MARGIN, WORLD.h - MARGIN);
+  for (let tries = 0; tries < 4; tries++) {
+    const a = awayX !== undefined ? Math.atan2(awayY, awayX) + rnd(-0.6, 0.6) : Math.random() * TAU;
+    const d = awayX !== undefined ? rnd(60, 180) : rnd(30, 140);
+    p.tx = clamp(p.x + Math.cos(a) * d, MARGIN, WORLD.w - MARGIN);
+    p.ty = clamp(p.y + Math.sin(a) * d, MARGIN, WORLD.h - MARGIN);
+    if (!messes.some(m => Math.hypot(m.x - p.tx, m.y - p.ty) < MESS_R + 12)) break;   // not next to a potty spot, thanks
+  }
   p.state = 'wander'; p.t = 6;
 }
 function updatePuppy(p, dt) {
@@ -457,7 +466,7 @@ function updatePuppy(p, dt) {
       if (d < 6) { toIdle(p); break; }
       const sp = 34 + p.size * 12;
       steer(p, dx / d * sp, dy / d * sp, 4, dt);
-      if (!calling) { p.vx += p.px * dt; p.vy += p.py * dt; }   // drift away from crowds on the way
+      if (!calling) { p.vx += p.px * dt * 2; p.vy += p.py * dt * 2; }   // drift away from crowds and potty spots on the way
       p.t -= dt; if (p.t <= 0) toIdle(p);
       break;
     }
@@ -548,6 +557,7 @@ function updatePuppy(p, dt) {
 function hopOf(p) {
   if (p.state === 'dance') return Math.abs(Math.sin(p.dance * TAU)) * 5;
   if (p.state === 'trick' && p.trick === 'jump') return Math.abs(Math.sin((p.tmax - p.t) / 0.8 * Math.PI)) * 18;
+  if (p.state === 'form' && formation && formation.kind === 'wave') return Math.max(0, -Math.sin(p.fx / 180 - formation.t * 2.2)) * 12;   // hop on the crest
   return 0;
 }
 function poseOf(p) {
@@ -800,14 +810,54 @@ function countPoints() {
   }
   return { pts, labels };
 }
+// Dynamic formations: slot k's target position at time t. Puppies chase their moving slot.
+const DYN = {
+  // a marching band: 10 abreast, ranks trailing back along an oval parade route, advancing at walking pace
+  band(t, k) {
+    const cols = 10, rank = (k / cols) | 0, col = k % cols;
+    const a = 1300, b = 780, ravg = 1040;
+    const th = t * 0.06 - (rank * 30) / ravg;
+    let nx = Math.cos(th) / a, ny = Math.sin(th) / b; const nl = Math.hypot(nx, ny); nx /= nl; ny /= nl;   // outward normal
+    const off = (col - (cols - 1) / 2) * 28;
+    return [1500 + a * Math.cos(th) + nx * off, 1000 + b * Math.sin(th) + ny * off];
+  },
+  // a firework: 40 spokes bloom out from the centre, hang and droop like sparks, gather back in, and go again
+  firework(t, k) {
+    const spokes = 40, spoke = k % spokes, idx = (k / spokes) | 0;
+    const th = spoke / spokes * TAU + idx * 0.015, R = 120 + idx * 12;
+    const u = (t % 12) / 12;
+    let r, droop = 0;
+    if (u < 0.35) { const f = u / 0.35; r = R * (0.12 + 0.88 * (1 - (1 - f) * (1 - f))); }
+    else if (u < 0.7) { r = R; const f = (u - 0.35) / 0.35; droop = f * f * 260; }
+    else { const f = (u - 0.7) / 0.3; r = R * (1 - 0.88 * f); droop = 260 * (1 - f); }
+    return [1500 + Math.cos(th) * r, 1000 + Math.sin(th) * r + droop];
+  },
+  // a wave rolling through a grid, 50 across
+  wave(t, k) {
+    const cols = 50, col = k % cols, row = (k / cols) | 0, rows = Math.ceil(N / cols), rowSp = Math.min(40, 1500 / rows);
+    const x = 275 + col * 50, y = 1000 - (rows - 1) * rowSp / 2 + row * rowSp;
+    return [x, y + Math.sin(x / 180 - t * 2.2) * 45];
+  }
+};
 function startFormation(kind) {
   let pts, labels = [];
-  if (kind === 'count') ({ pts, labels } = countPoints());
-  else pts = shapePoints(kind);
-  pts.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
-  const order = puppies.slice().sort((a, b) => a.x - b.x);
-  for (let i = 0; i < N; i++) { const p = order[i]; p.fx = clamp(pts[i][0], MARGIN, WORLD.w - MARGIN); p.fy = clamp(pts[i][1], MARGIN, WORLD.h - MARGIN); }
-  formation = { kind, labels };
+  const dyn = DYN[kind];
+  if (dyn) {
+    // pair puppies with slots along the same ordering (angle around the centre, or x for the wave) so nobody crosses the whole field
+    const slots = []; for (let k = 0; k < N; k++) { const [x, y] = dyn(kind === 'firework' ? 3 : 0, k); slots.push([k, x, y]); }
+    const key = kind === 'wave' ? (o => o[1]) : (o => Math.atan2(o[2] - 1000, o[1] - 1500));
+    slots.sort((a, b) => key(a) - key(b));
+    const order = puppies.slice().sort((a, b) => key([0, a.x, a.y]) - key([0, b.x, b.y]));
+    for (let i = 0; i < N; i++) { const p = order[i]; p.slot = slots[i][0]; p.fx = clamp(slots[i][1], MARGIN, WORLD.w - MARGIN); p.fy = clamp(slots[i][2], MARGIN, WORLD.h - MARGIN); }
+    formation = { kind, labels, dyn, t: 0, lastU: 0 };
+  } else {
+    if (kind === 'count') ({ pts, labels } = countPoints());
+    else pts = shapePoints(kind);
+    pts.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+    const order = puppies.slice().sort((a, b) => a.x - b.x);
+    for (let i = 0; i < N; i++) { const p = order[i]; p.fx = clamp(pts[i][0], MARGIN, WORLD.w - MARGIN); p.fy = clamp(pts[i][1], MARGIN, WORLD.h - MARGIN); }
+    formation = { kind, labels };
+  }
   for (const p of puppies) if (p.state !== 'carry' && p.state !== 'eat') { p.state = 'form'; p.obj = null; }
   $('btn-surprise').classList.add('on');
   camT.zoom = minZoom(); camT.x = WORLD.w / 2; camT.y = WORLD.h / 2; clampCam(camT);
@@ -818,6 +868,16 @@ function releaseFormation() {
   if (!formation) return;
   endFormation();
   showToast('Run free, puppies! 🐾', 2000);
+}
+function updateFormation(dt) {
+  if (!formation || !formation.dyn) return;
+  formation.t += dt;
+  for (const p of puppies) { const [x, y] = formation.dyn(formation.t, p.slot); p.fx = clamp(x, MARGIN, WORLD.w - MARGIN); p.fy = clamp(y, MARGIN, WORLD.h - MARGIN); }
+  if (formation.kind === 'firework') {
+    const u = (formation.t % 12) / 12;
+    if (formation.lastU < 0.33 && u >= 0.33) { burstConfetti(W / 2 + (1500 - cam.x) * cam.zoom, H / 2 + (1000 - cam.y) * cam.zoom, 200, 600); sfx.pop(); }
+    formation.lastU = u;
+  }
 }
 function endFormation() {
   if (!formation) return;
@@ -1416,6 +1476,7 @@ function frame(t) {
   calling = !!(gesture && gesture.type === 'call' && pointers.size);
   if (calling) { releaseFormation(); const pt = [...pointers.values()][0]; const w = toWorld(pt.x, pt.y); callPuppies(w.x, w.y, CALL_PX / cam.zoom); }
   // simulate
+  updateFormation(dt);
   for (let i = 0; i < N; i++) updatePuppy(puppies[i], dt);
   rebuildGrid();
   separate();
