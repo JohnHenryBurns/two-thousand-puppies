@@ -76,7 +76,10 @@ const requestedDays = urlBirthday
   : parseInt(params.get('days') || store.get('days', '2000'), 10) || 2000;
 N = clamp(requestedDays, 10, MAX_DAYS);
 const tooMany = requestedDays > MAX_DAYS ? requestedDays : 0;   // someone older than our field can hold: draw the max, and say so
-const KEY = N === 2000 ? '' : '.' + N;   // progress is saved per puppy count, so two kids' links don't mix on one device
+// Progress (collars, stats) is saved under a key that stays the same for the same kid: the birthday when the link
+// has one (the count grows by one every day, so keying on N would reset the collars overnight), else the count.
+// Two kids' links still don't mix on one device.
+const KEY = urlBirthday ? '.' + ymd(urlBirthday) : (N === 2000 ? '' : '.' + N);
 let kidName = (params.get('name') || store.get('name', '')).trim();
 let birthday = urlBirthday || parseDate(store.get('bday', '')) || new Date(todayUTC().getTime() - (N - 1) * DAY_MS);
 const dayDate = n => new Date(birthday.getTime() + (n - 1) * DAY_MS);

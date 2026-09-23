@@ -48,8 +48,9 @@ https://johnhenryburns.github.io/two-thousand-puppies/?name=Ada&days=1846
   no birthday, the game assumes today is day 2,000.
 - Either way the count is kept between 10 and 2600 (about 7 years). Anyone older gets a note on the
   title screen that the rest of their puppies are at the park, and the maximum is drawn. Every bit of text, the intro
-  count, the "Count by 100s" formation, and the milestones follow it, and petting progress is saved
-  separately per number.
+  count, the "Count by 100s" formation, and the milestones follow it. Petting progress is saved
+  per birthday (for birthday links) or per number (for `days` links), so a daily birthday link keeps
+  every collar as the count grows, and two kids' links don't mix on one device.
 - `intro=0`: skip the title screen. Optional `zoom`, `x`, `y` set the starting camera.
 
 ## Files
