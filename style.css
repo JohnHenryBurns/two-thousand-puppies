@@ -18,6 +18,10 @@ html, body {
 
 #hud { position: fixed; inset: 0; pointer-events: none; }
 #hud button { pointer-events: auto; font-family: var(--font); }
+/* while the intro count is running, the controls are greyed out and inert */
+body.intro-running #hud button, body.intro-running #minimap { pointer-events: none; }
+body.intro-running #toolbar, body.intro-running #minimap { opacity: .4; transition: opacity .4s; }
+body.intro-running .menu { visibility: hidden; }
 
 #topbar {
   position: absolute; top: max(10px, env(safe-area-inset-top)); left: 12px;

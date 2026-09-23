@@ -1021,18 +1021,18 @@ canvas.addEventListener('pointerleave', e => { if (e.pointerType === 'mouse') mo
 window.addEventListener('wheel', e => {
   if (!$('intro').classList.contains('hidden') || !$('help').classList.contains('hidden')) return; // let overlays scroll
   e.preventDefault();
-  if (intro) skipIntro();
+  if (intro) return;   // the reveal plays through; controls wake up when the count reaches the end
   // normalise: deltaMode 0 = pixels, 1 = lines (Firefox), 2 = pages
   let dy = e.deltaY;
   if (e.deltaMode === 1) dy *= 16; else if (e.deltaMode === 2) dy *= H;
   dy = clamp(dy, -240, 240);
   zoomAt(e.clientX, e.clientY, camT.zoom * Math.exp(-dy * 0.0025), false);
 }, { passive: false });
-canvas.addEventListener('dblclick', e => { if (intro) skipIntro(); zoomAt(e.clientX, e.clientY, camT.zoom * 2, false); });
+canvas.addEventListener('dblclick', e => { if (intro) return; zoomAt(e.clientX, e.clientY, camT.zoom * 2, false); });
 canvas.addEventListener('contextmenu', e => e.preventDefault());
 document.addEventListener('gesturestart', e => e.preventDefault());
 window.addEventListener('keydown', e => {
-  if (e.target.tagName === 'INPUT') return;
+  if (e.target.tagName === 'INPUT' || intro) return;
   const step = 60;
   if (e.key === 'ArrowLeft' || e.key === 'a') panBy(step, 0);
   else if (e.key === 'ArrowRight' || e.key === 'd') panBy(-step, 0);
@@ -1088,8 +1088,8 @@ document.querySelectorAll('[data-menu]').forEach(b => b.addEventListener('click'
   closeMenu();
   if (!wasOpen) m.classList.remove('hidden');
 }));
-$('btn-zoomin').addEventListener('click', () => { if (intro) skipIntro(); zoomAt(W / 2, H / 2, camT.zoom * 1.6, false); });
-$('btn-zoomout').addEventListener('click', () => { if (intro) skipIntro(); zoomAt(W / 2, H / 2, camT.zoom / 1.6, false); });
+$('btn-zoomin').addEventListener('click', () => { if (intro) return; zoomAt(W / 2, H / 2, camT.zoom * 1.6, false); });
+$('btn-zoomout').addEventListener('click', () => { if (intro) return; zoomAt(W / 2, H / 2, camT.zoom / 1.6, false); });
 $('btn-all').addEventListener('click', () => { if (intro) return; camT.zoom = minZoom(); camT.x = WORLD.w / 2; camT.y = WORLD.h / 2; clampCam(camT); });
 document.querySelectorAll('#surprise-menu button').forEach(b => b.addEventListener('click', () => {
   closeMenu(); if (intro) return;
@@ -1198,7 +1198,8 @@ $('btn-start').addEventListener('click', () => {
   startIntro();
 });
 function startIntro() {
-  endFormation();
+  endFormation(); closeMenu();
+  document.body.classList.add('intro-running');   // controls are disabled until the count reaches the end
   const p = puppies[0];
   p.x = clamp(p.x, 300, WORLD.w - 300); p.y = clamp(p.y, 300, WORLD.h - 300);
   p.state = 'happy'; p.t = 3;
@@ -1211,7 +1212,7 @@ function startIntro() {
 function skipIntro() {
   // jump straight to the end of the reveal (the whole field, all 2,000 in view)
   if (!intro) return;
-  intro.t = 2.6 + 9;
+  intro.t = 2.6 + 9; intro.seen = N; intro.shown = N;
   updateIntro(0);
 }
 function updateIntro(dt) {
@@ -1232,6 +1233,7 @@ function updateIntro(dt) {
   if (prog > 0.05) $('card').classList.add('hidden');
   if (prog >= 1 && n >= N) {
     intro = null;
+    document.body.classList.remove('intro-running');
     $('bignum-label').textContent = 'puppies. One for every day' + (kidName ? ', ' + kidName : '') + '!';
     setTimeout(() => $('bignum').classList.add('hidden'), 4000);
     burstConfetti(W / 2, H * 0.3, 150, 550); sfx.fanfare();
