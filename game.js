@@ -821,16 +821,20 @@ const DYN = {
     const off = (col - (cols - 1) / 2) * 28;
     return [1500 + a * Math.cos(th) + nx * off, 1000 + b * Math.sin(th) + ny * off];
   },
-  // a firework: 40 spokes bloom out from the centre, hang and droop like sparks, gather back in, and go again
+  // a firework 🎆: a glowing ball high on the field bursts into 40 streams of sparks that fly out on
+  // ballistic arcs and fall, each spark a little later than the one before it so the streams curve;
+  // then the sparks run back into the ball and it goes again
   firework(t, k) {
-    const spokes = 40, spoke = k % spokes, idx = (k / spokes) | 0;
-    const th = spoke / spokes * TAU + idx * 0.015, R = 120 + idx * 12;
-    const u = (t % 12) / 12;
-    let r, droop = 0;
-    if (u < 0.35) { const f = u / 0.35; r = R * (0.12 + 0.88 * (1 - (1 - f) * (1 - f))); }
-    else if (u < 0.7) { r = R; const f = (u - 0.35) / 0.35; droop = f * f * 260; }
-    else { const f = (u - 0.7) / 0.3; r = R * (1 - 0.88 * f); droop = 260 * (1 - f); }
-    return [1500 + Math.cos(th) * r, 1000 + Math.sin(th) * r + droop];
+    const S = 20, s = k % S, idx = (k / S) | 0, per = Math.ceil(N / S);
+    const T = 14, FLY = 7, u = t % T;
+    const ox = 1500, oy = 650, a = s / S * TAU + 0.03 * (idx % 3), g = 45, delay = idx / per * 5;   // each stream is 5 s of sparks long
+    const v = 150 * (1 - 0.45 * Math.max(0, Math.sin(a)));   // streams pointing down don't fly as far (the ground is close)
+    const br = 20 + idx / per * 130;
+    const ball = [ox + Math.cos(a) * br, oy + Math.sin(a) * br];
+    const flight = tau => tau <= 0 ? ball : [ox + Math.cos(a) * v * tau, oy + Math.sin(a) * v * tau + g * tau * tau / 2];
+    if (u < FLY) return flight(u - delay);
+    const end = flight(FLY - delay), f = Math.min(1, (u - FLY) / 5), e = f * f * (3 - 2 * f);   // 5 s back to the ball, then wait
+    return [end[0] + (ball[0] - end[0]) * e, end[1] + (ball[1] - end[1]) * e];
   },
   // a wave rolling through a grid, 50 across
   wave(t, k) {
@@ -849,7 +853,7 @@ function startFormation(kind) {
     slots.sort((a, b) => key(a) - key(b));
     const order = puppies.slice().sort((a, b) => key([0, a.x, a.y]) - key([0, b.x, b.y]));
     for (let i = 0; i < N; i++) { const p = order[i]; p.slot = slots[i][0]; p.fx = clamp(slots[i][1], MARGIN, WORLD.w - MARGIN); p.fy = clamp(slots[i][2], MARGIN, WORLD.h - MARGIN); }
-    formation = { kind, labels, dyn, t: 0, lastU: 0 };
+    formation = { kind, labels, dyn, t: 0, lastU: Infinity };
   } else {
     if (kind === 'count') ({ pts, labels } = countPoints());
     else pts = shapePoints(kind);
@@ -874,8 +878,8 @@ function updateFormation(dt) {
   formation.t += dt;
   for (const p of puppies) { const [x, y] = formation.dyn(formation.t, p.slot); p.fx = clamp(x, MARGIN, WORLD.w - MARGIN); p.fy = clamp(y, MARGIN, WORLD.h - MARGIN); }
   if (formation.kind === 'firework') {
-    const u = (formation.t % 12) / 12;
-    if (formation.lastU < 0.33 && u >= 0.33) { burstConfetti(W / 2 + (1500 - cam.x) * cam.zoom, H / 2 + (1000 - cam.y) * cam.zoom, 200, 600); sfx.pop(); }
+    const u = formation.t % 14;
+    if (u < formation.lastU) { burstConfetti(W / 2 + (1500 - cam.x) * cam.zoom, H / 2 + (650 - cam.y) * cam.zoom, 220, 650); sfx.pop(); }   // the burst
     formation.lastU = u;
   }
 }
