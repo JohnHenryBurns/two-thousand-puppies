@@ -19,8 +19,8 @@ Visit [johnhenryburns.github.io/two-thousand-puppies](https://johnhenryburns.git
 - **✋ Hand**: far away, wave through the crowd to shoo. Up close, tap a puppy to pet it.
 - **📣 Call**: press and hold, and the nearby puppies come running. Let go and they wander off again.
 - **🎁 Play** menu: a **🦴 Treat** (tap the grass to drop one), the **🎾 Ball** (tap to throw, the nearest puppy fetches it back), or a **📻 Dance party** (tap to put down a boombox; up to 40 nearby puppies bounce to the beat while notes float out of it, for 40 seconds or until you tap the boombox again).
-- **Commands**: tap a puppy and its card offers **Sit**, **Lie down**, **Roll over** and **Beg**.
-- **✨ Surprise**: all 2,000 puppies form a heart, spell her name, or line up in 20 blocks of 100.
+- **Commands**: tap a puppy and its card offers **Sit**, **Lie down**, **Roll over**, **Beg** and **Jump**.
+- **✨ Surprise**: all 2,000 puppies form a heart or a smiley, spell her name, or line up in 20 blocks of 100.
 - **⋯ More**: sound on/off and the help screen.
 - Puppies occasionally take a potty break (a puddle or a poo with a few flies) that fades after a while.
 - Zoom with the scroll wheel, pinch, double-click, or the ➕ ➖ buttons. Drag the grass to look around. The minimap in the corner jumps anywhere.

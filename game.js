@@ -510,7 +510,7 @@ function updatePuppy(p, dt) {
       p.rot = p.trick === 'roll' && el < 1.4 ? (el / 1.4) * TAU * p.facing : 0;
       if (p.t <= 0) {
         p.rot = 0; p.state = 'happy'; p.t = 2; spawnHearts(p, 2); sfx.yip();
-        if (selected === p) showCard(p, 8000, 'Good ' + { sit: 'sit', lie: 'lie down', roll: 'roll', beg: 'beg' }[p.trick] + ', ' + p.name + '! 🎉');
+        if (selected === p) showCard(p, 8000, 'Good ' + { sit: 'sit', lie: 'lie down', roll: 'roll', beg: 'beg', jump: 'jump' }[p.trick] + ', ' + p.name + '! 🎉');
       }
       break;
     }
@@ -544,12 +544,18 @@ function updatePuppy(p, dt) {
   if (spd > 8) p.anim += dt * spd / 7;
   p.wag += dt * (p.state === 'happy' ? 16 : 5);
 }
+// how high off the ground a puppy is drawn (world units): dancing bounces, jumping hops twice
+function hopOf(p) {
+  if (p.state === 'dance') return Math.abs(Math.sin(p.dance * TAU)) * 5;
+  if (p.state === 'trick' && p.trick === 'jump') return Math.abs(Math.sin((p.tmax - p.t) / 0.8 * Math.PI)) * 18;
+  return 0;
+}
 function poseOf(p) {
   if (p.state === 'sleep') return P_SLEEP;
   if (p.state === 'eat') return P_EAT;
   if (p.state === 'happy' || p.state === 'dance') return P_HAPPY;
   if (p.state === 'potty') return P_SIT;
-  if (p.state === 'trick') return p.trick === 'beg' ? P_BEG : p.trick === 'sit' ? P_SIT : P_LIE;
+  if (p.state === 'trick') return p.trick === 'beg' ? P_BEG : p.trick === 'sit' ? P_SIT : p.trick === 'jump' ? (hopOf(p) > 3 ? P_WALK1 : P_STAND) : P_LIE;
   if (Math.hypot(p.vx, p.vy) > 8) return P_WALK1 + ((p.anim | 0) & 1);
   if (p.state === 'idle' && p.idlePose === 'sit') return P_SIT;
   if (p.state === 'form' && p.i % 3 === 0) return P_SIT;
@@ -602,7 +608,7 @@ function doTrick(p, trick) {
   if (!p || p.state === 'carry') return;
   releaseFormation();
   if (p.state === 'dance' || (p.state === 'seek' && p.obj && p.obj.type === 'dance')) p.obj = null;
-  p.state = 'trick'; p.trick = trick; p.t = trick === 'roll' ? 2.2 : trick === 'lie' ? 4 : 3; p.tmax = p.t;
+  p.state = 'trick'; p.trick = trick; p.t = trick === 'roll' ? 2.2 : trick === 'lie' ? 4 : trick === 'jump' ? 1.6 : 3; p.tmax = p.t;
   p.vx = p.vy = 0; p.rot = 0; p.obj = null;
   sfx.pop(); showCard(p, 8000);
 }
@@ -740,6 +746,12 @@ function shapePoints(kind) {
       if (t === 0) g.moveTo(cx + x * k, cy + y * k); else g.lineTo(cx + x * k, cy + y * k);
     }
     g.closePath(); g.fill();
+  } else if (kind === 'smiley') {
+    const cx = cw / 2, cy = ch / 2, R = ch * 0.42;
+    g.strokeStyle = '#fff'; g.lineCap = 'round';
+    g.lineWidth = R * 0.17; g.beginPath(); g.arc(cx, cy, R, 0, TAU); g.stroke();                                          // face
+    for (const s of [-1, 1]) { g.beginPath(); g.arc(cx + s * R * 0.36, cy - R * 0.28, R * 0.13, 0, TAU); g.fill(); }       // eyes
+    g.lineWidth = R * 0.15; g.beginPath(); g.arc(cx, cy + R * 0.05, R * 0.6, Math.PI * 0.15, Math.PI * 0.85); g.stroke();   // smile
   } else {
     const lines = kind === 'name' && kidName ? [kidName.toUpperCase(), String(N)] : [String(N)];
     const fam = "700 100px Fredoka, 'Arial Black', Impact, sans-serif";
@@ -1050,7 +1062,7 @@ function showCard(p, ms, override) {
   selected = p;
   $('card').innerHTML = (override ? '<div class="name">' + override + '</div>' : '<div class="name">' + p.name + '</div>') +
     '<div class="day">Puppy <b>#' + fmtNum(n) + '</b>, ' + dayLine + '<br>' + fmtDate(dayDate(n)) + (p.petted ? ' · 💗 petted' : '') + '</div>' +
-    '<div class="cmds"><button data-cmd="sit">Sit 🐕</button><button data-cmd="lie">Lie down 🛏️</button><button data-cmd="roll">Roll over 🔄</button><button data-cmd="beg">Beg 🙏</button></div>';
+    '<div class="cmds"><button data-cmd="sit">Sit 🐕</button><button data-cmd="lie">Lie down 🛏️</button><button data-cmd="roll">Roll over 🔄</button><button data-cmd="beg">Beg 🙏</button><button data-cmd="jump">Jump ⬆️</button></div>';
   $('card').classList.remove('hidden');
   clearTimeout(cardTimer);
   if (ms) cardTimer = setTimeout(() => $('card').classList.add('hidden'), ms);
@@ -1288,7 +1300,7 @@ function render() {
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
         continue;
       }
-      const hop = p.state === 'dance' ? Math.abs(Math.sin(p.dance * TAU)) * 5 * s : 0;
+      const hop = hopOf(p) * s;
       ctx.drawImage(img, sx - SPR_OX * k, sy - SPR_OY * k - hop, px, px);
       if (p.petted && s > 0.5 && !hop) {
         // the collar as it looks up close: only the band under the chin shows (the head hides the rest), plus the tag
@@ -1301,10 +1313,10 @@ function render() {
   } else {
     for (const p of visible) {
       const s = z * p.size;
-      const hop = p.state === 'dance' ? Math.abs(Math.sin(p.dance * TAU)) * 5 : 0;
+      const hop = hopOf(p);
       ctx.setTransform(dpr * s * p.facing, 0, 0, dpr * s, dpr * (ox + p.x * z), dpr * (oy + (p.y - hop) * z));
       if (p.rot) ctx.rotate(p.rot * p.facing);
-      else if (hop) ctx.rotate(Math.sin(p.dance * TAU) * 0.12);   // a little wiggle with each bounce
+      else if (p.state === 'dance') ctx.rotate(Math.sin(p.dance * TAU) * 0.12);   // a little wiggle with each bounce
       const pose = POSES[poseOf(p)];
       const o = { collar: p.petted ? p.collar : null, wag: Math.sin(p.wag) * (p.state === 'happy' || p.state === 'dance' ? 0.5 : 0.18) };
       if (pw && GEOM[pose].eyes === 'open') {
