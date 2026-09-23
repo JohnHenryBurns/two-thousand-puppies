@@ -35,13 +35,12 @@ body.intro-running .menu { visibility: hidden; }
 #barfill { height: 100%; width: 0%; background: linear-gradient(90deg, var(--pink), var(--yellow)); border-radius: 6px; transition: width .4s; }
 
 #card {
-  position: absolute; top: max(12px, env(safe-area-inset-top)); left: 50%; transform: translateX(-50%);
+  position: absolute; top: max(12px, env(safe-area-inset-top)); left: 0; right: 0; margin: 0 auto; width: fit-content;
   background: var(--panel); border-radius: 18px; padding: 10px 18px; text-align: center;
-  box-shadow: 0 4px 14px rgba(0,0,0,.18); max-width: min(92vw, 420px);
-  transition: opacity .25s, transform .25s; opacity: 1;
+  box-shadow: 0 4px 14px rgba(0,0,0,.18); max-width: min(94vw, 540px);
+  transition: opacity .25s, transform .25s, visibility .25s; opacity: 1;
 }
-#card.hidden { opacity: 0; transform: translateX(-50%) translateY(-10px); pointer-events: none; }
-#card { transition: opacity .25s, transform .25s, visibility .25s; }
+#card.hidden { opacity: 0; transform: translateY(-10px); pointer-events: none; }
 #card .name { font-size: 24px; font-weight: 700; color: var(--brown); }
 #card .day { font-size: 14px; }
 #card .day b { color: var(--pink); }
@@ -177,9 +176,12 @@ details.parents input { font-family: var(--font); font-size: 16px; padding: 4px 
   #counter { font-size: 12px; }
   #counter b { font-size: 13px; }
   #bar { height: 7px; margin-top: 4px; }
-  #card { top: calc(max(10px, env(safe-area-inset-top)) + 66px); padding: 8px 14px; }
+  #card { top: calc(max(10px, env(safe-area-inset-top)) + 66px); padding: 8px 12px; }
   #card .name { font-size: 20px; }
   #card .day { font-size: 12px; }
+  #card .cmds { gap: 5px; margin-top: 6px; }
+  #card .cmds button { font-size: 13px; padding: 6px 9px; }
+  #card .cmds .em { display: none; }   /* text only, so all five fit on one row */
   .panel { padding: 20px 18px; }
 }
 
@@ -199,10 +201,12 @@ details.parents input { font-family: var(--font); font-size: 16px; padding: 4px 
   #counter { font-size: 11px; }
   #counter b { font-size: 12px; }
   #bar { height: 6px; margin-top: 3px; }
-  #card { top: 6px; left: auto; right: 8px; transform: none; max-width: 55vw; padding: 6px 12px; }
-  #card.hidden { transform: translateY(-10px); }
+  #card { top: 6px; left: auto; right: 8px; margin: 0; max-width: 60vw; padding: 6px 12px; }
   #card .name { font-size: 18px; }
   #card .day { font-size: 11px; }
+  #card .cmds { gap: 4px; margin-top: 5px; }
+  #card .cmds button { font-size: 12px; padding: 5px 8px; }
+  #card .cmds .em { display: none; }
   #bignum-n { font-size: 64px; }
   #bignum-label { font-size: 20px; }
   .panel { padding: 14px 18px; }

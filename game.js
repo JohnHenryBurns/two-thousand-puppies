@@ -1129,7 +1129,8 @@ function showCard(p, ms, override) {
   selected = p;
   $('card').innerHTML = (override ? '<div class="name">' + override + '</div>' : '<div class="name">' + p.name + '</div>') +
     '<div class="day">Puppy <b>#' + fmtNum(n) + '</b>, ' + dayLine + '<br>' + fmtDate(dayDate(n)) + (p.petted ? ' · 💗 petted' : '') + '</div>' +
-    '<div class="cmds"><button data-cmd="sit">Sit 🐕</button><button data-cmd="lie">Lie down 🛏️</button><button data-cmd="roll">Roll over 🔄</button><button data-cmd="beg">Beg 🙏</button><button data-cmd="jump">Jump ⬆️</button></div>';
+    '<div class="cmds"><button data-cmd="sit">Sit <span class="em">🐕</span></button><button data-cmd="lie">Lie down <span class="em">🛏️</span></button>' +
+    '<button data-cmd="roll">Roll over <span class="em">🔄</span></button><button data-cmd="beg">Beg <span class="em">🙏</span></button><button data-cmd="jump">Jump <span class="em">⬆️</span></button></div>';
   $('card').classList.remove('hidden');
   clearTimeout(cardTimer);
   if (ms) cardTimer = setTimeout(() => $('card').classList.add('hidden'), ms);
