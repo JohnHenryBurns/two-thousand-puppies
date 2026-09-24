@@ -1452,7 +1452,7 @@ function render() {
       const lv = sprites[p.look][pose][p.facing < 0 ? 1 : 0];
       const img = px >= SPR * 0.75 ? lv[0] : px >= SPR * 0.375 ? lv[1] : lv[2];
       if (p.rot) {   // rolling over: spin the sprite about the body centre
-        ctx.setTransform(dpr, 0, 0, dpr, sx, sy); ctx.rotate(p.rot);
+        ctx.setTransform(dpr, 0, 0, dpr, dpr * sx, dpr * sy); ctx.rotate(p.rot);   // translation is in device pixels
         ctx.drawImage(img, -SPR_OX * k, -SPR_OY * k, px, px);
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
         continue;
