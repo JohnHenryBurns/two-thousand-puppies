@@ -125,9 +125,31 @@ const LOOKS = [
   { fur: '#f5c27a', dark: '#e0a75c', light: '#fff8ea', shaggy: true, ears: 'pointy', tail: 'curl', sz: 0.65 }, // pomeranian
   { fur: '#c8a06a', dark: '#5c5a62', light: '#e8d3b0', pattern: 'saddle', shaggy: true, ears: 'pointy', sz: 0.7 }, // yorkie
   { fur: '#efe6d6', dark: '#7a5a3a', light: '#ffffff', pattern: 'patch', shaggy: true, sz: 1.2 },              // st bernard-ish
-  { fur: '#5a4632', dark: '#3b2a1e', light: '#a88a6a', ears: 'pointy', sz: 1.0 }                               // brindle mutt
+  { fur: '#5a4632', dark: '#3b2a1e', light: '#a88a6a', ears: 'pointy', sz: 1.0 },                              // brown mutt
+  // stripes and spots
+  { fur: '#a1785a', dark: '#3e2723', light: '#e8d5c4', pattern: 'stripes', sz: 1.05 },                         // brindle boxer
+  { fur: '#d4a373', dark: '#4e342e', light: '#f5e6d3', pattern: 'stripes', ears: 'pointy', sz: 0.95 },         // brindle mutt
+  { fur: '#b0bec5', dark: '#37474f', light: '#eceff1', pattern: 'bigspots', spot: '#37474f', sz: 1.0 },        // blue merle
+  { fur: '#fff8e1', dark: '#8d6e63', light: '#ffffff', pattern: 'bigspots', spot: '#a1887f', sz: 0.95 },       // brown-and-white spotted
+  { fur: '#fafafa', dark: '#3e2723', light: '#ffffff', pattern: 'patches', spot: '#5d4037', sz: 1.05 },        // pointer
+  // great danes: huge and lean
+  { fur: '#fafafa', dark: '#212121', light: '#ffffff', pattern: 'patches', spot: '#212121', slim: true, sz: 1.6 },   // harlequin
+  { fur: '#d2a679', dark: '#3e2723', light: '#f3e0c8', pattern: 'mask', ears: 'pointy', slim: true, sz: 1.6 },       // fawn
+  { fur: '#546e7a', dark: '#37474f', light: '#b0bec5', slim: true, sz: 1.6 },                                        // blue
+  // french poodles: pom-poms everywhere
+  { fur: '#ffffff', dark: '#e6e6e6', light: '#ffffff', poodle: true, sz: 0.95 },                              // white
+  { fur: '#2a2a2a', dark: '#111111', light: '#666666', poodle: true, sz: 0.95 },                              // black
+  { fur: '#f4c7a1', dark: '#e0a878', light: '#fff2e6', poodle: true, sz: 0.7 },                               // toy apricot
+  // pugs: flat dark muzzle, curly tail
+  { fur: '#e8c39e', dark: '#2b2b2b', light: '#e8c39e', pug: true, tail: 'curl', sz: 0.8 },                    // fawn
+  { fur: '#2b2b2b', dark: '#111111', light: '#2b2b2b', pug: true, tail: 'curl', sz: 0.8 },                    // black
+  // wiener dogs
+  { fur: '#c1633a', dark: '#8d4526', light: '#e8a97e', long: true, sz: 0.85 },                                // red dachshund
+  { fur: '#2b2b2b', dark: '#111111', light: '#c98a4b', long: true, pattern: 'belly', sz: 0.85 },              // black-and-tan dachshund
+  { fur: '#7a4a2a', dark: '#4e2f1b', light: '#b98a62', long: true, pattern: 'bigspots', spot: '#c9a58a', sz: 0.85 }, // chocolate dapple
+  { fur: '#d9b28c', dark: '#a8825e', light: '#f3e2cd', long: true, shaggy: true, sz: 0.85 }                   // wire-haired dachshund
 ];
-LOOKS.forEach(L => { L.mid = mix(L.fur, L.dark, 0.5); L.dot = L.pattern === 'spots' ? mix(L.fur, L.spot, 0.3) : L.fur; L.dotPetted = mix(L.dot, '#ff6fa3', 0.5); L.sz = L.sz || 1; L.ears = L.ears || 'floppy'; L.tail = L.tail || 'wag'; });
+LOOKS.forEach(L => { L.mid = mix(L.fur, L.dark, 0.5); L.dot = L.spot ? mix(L.fur, L.spot, 0.3) : L.fur; L.dotPetted = mix(L.dot, '#ff6fa3', 0.5); L.sz = L.sz || 1; L.ears = L.ears || 'floppy'; L.tail = L.tail || 'wag'; });
 const COLLARS = ['#e53935', '#1e88e5', '#43a047', '#fb8c00', '#8e24aa', '#00acc1', '#ff6fa3', '#fdd835'];
 
 // ============================================================ PUPPY DRAWING
@@ -168,41 +190,66 @@ function pointyEar(g, x, y, dir, color, inner) {
   g.fillStyle = color; g.beginPath(); g.moveTo(x - 3.2, y + 1); g.lineTo(x + 3.2, y + 1); g.lineTo(x + dir * 1.8, y - 8.5); g.closePath(); g.fill();
   g.fillStyle = inner; g.beginPath(); g.moveTo(x - 1.5, y + 0.5); g.lineTo(x + 1.5, y + 0.5); g.lineTo(x + dir * 1.2, y - 5.5); g.closePath(); g.fill();
 }
+// a few brindle stripes across the body, kept inside the ellipse
+function stripes(g, bx, by, brx, bry, color) {
+  g.strokeStyle = color; g.lineWidth = 2.2; g.lineCap = 'round';
+  for (const d of [-8, -3, 2, 7]) {
+    const h = bry * Math.sqrt(Math.max(0, 1 - (d / brx) * (d / brx))) * 0.8;
+    g.beginPath(); g.moveTo(bx + d + 1.5, by - h); g.lineTo(bx + d - 1.5, by + h); g.stroke();
+  }
+}
 function drawPuppy(g, L, poseName, o) {
   const Gm = GEOM[poseName];
   const wag = o.wag || 0, ex = o.ex || 0, ey = o.ey || 0;
-  const [bx, by, brx, bry] = Gm.body;
-  const [hx, hy, hr] = Gm.head;
+  let [bx, by, brx, bry] = Gm.body;
+  let [hx, hy, hr] = Gm.head;
+  let legs = Gm.legs;
+  let [tx, ty, ta] = Gm.tail;
+  const standing = legs.length === 4;
+  // body types
+  if (L.long) {   // dachshund: long body, short legs, head further forward
+    brx *= standing ? 1.5 : 1.25; bx -= 2; hx += 5;
+    if (standing) { legs = legs.map(l => [l[0] + (l[0] < 0 ? -5 : 5), l[1] + 3, l[2] - 3]); tx -= 7; } else tx -= 3;
+  }
+  if (L.slim) bry *= 0.85;   // great dane: lean
+  const a = ta + wag;
   // tail
-  const [tx, ty, ta] = Gm.tail; const a = ta + wag;
   g.strokeStyle = L.dark; g.lineWidth = L.shaggy ? 5 : 4; g.lineCap = 'round';
   if (L.tail === 'curl' && poseName !== 'sleep') {
     // a curly tail over the back
-    g.beginPath(); g.arc(tx - 1, ty - 6 + wag * 2, 4.5, Math.PI * 0.5, Math.PI * 1.9); g.stroke();
+    g.beginPath(); g.arc(tx - 1, ty - 6 + wag * 2, L.pug ? 3.5 : 4.5, Math.PI * 0.5, Math.PI * 1.9); g.stroke();
   } else {
     g.beginPath(); g.moveTo(tx, ty);
     g.quadraticCurveTo(tx - 5 * Math.cos(a), ty - 5 * Math.sin(a) - 2.5, tx - 10 * Math.cos(a), ty - 10 * Math.sin(a));
     g.stroke();
+    if (L.poodle) circ(g, tx - 10 * Math.cos(a), ty - 10 * Math.sin(a), 3.2, L.fur);   // pom-pom on the tip
   }
   // far ear
-  if (L.ears === 'pointy') pointyEar(g, hx + 2, hy - 7, 1, L.dark, mix(L.dark, '#ffb3c6', 0.5));
+  if (L.pug) ell(g, hx + 3, hy - 8, 2.6, 3.4, 0.5, L.dark);
+  else if (L.ears === 'pointy') pointyEar(g, hx + 2, hy - 7, 1, L.dark, mix(L.dark, '#ffb3c6', 0.5));
+  else if (L.poodle) fluff(g, hx - 7, hy + 3, 3.4, 6, L.dark, 8);
   else ell(g, hx - 7.5, hy + 2, 3.2, 6.2, -0.25, L.dark);
   // back legs
-  if (Gm.legs.length === 4) { leg(g, Gm.legs[0][0], Gm.legs[0][1], Gm.legs[0][2], L.mid); leg(g, Gm.legs[1][0], Gm.legs[1][1], Gm.legs[1][2], L.mid); }
+  if (standing) { leg(g, legs[0][0], legs[0][1], legs[0][2], L.mid); leg(g, legs[1][0], legs[1][1], legs[1][2], L.mid); }
   // body
   if (L.shaggy) fluff(g, bx, by, brx, bry, L.fur, 18); else ell(g, bx, by, brx, bry, 0, L.fur);
-  if (L.pattern === 'saddle') ell(g, bx - 2, by - 3.5, 9.5, 5, 0, L.dark);
+  if (L.pattern === 'saddle') ell(g, bx - 2, by - 3.5, brx * 0.73, 5, 0, L.dark);
   if (L.pattern === 'patch') ell(g, bx - 2, by - 4, 7, 4, 0, L.dark);
-  if (L.pattern === 'belly') ell(g, bx + 2, by + 4, 8, 3.8, 0, L.light);
-  if (L.pattern === 'mask') ell(g, bx - 1, by - 4, 9, 4, 0, L.dark);
+  if (L.pattern === 'belly') ell(g, bx + 2, by + 4, brx * 0.62, 3.8, 0, L.light);
+  if (L.pattern === 'mask') ell(g, bx - 1, by - 4, brx * 0.7, 4, 0, L.dark);
   if (L.pattern === 'spots') {
     circ(g, bx - 6, by - 3, 2.2, L.spot); circ(g, bx + 1, by + 2, 1.8, L.spot);
     circ(g, bx - 2, by + 5, 1.4, L.spot); circ(g, bx + 6, by - 4, 1.6, L.spot);
   }
+  if (L.pattern === 'bigspots') { ell(g, bx - brx * 0.45, by - 2, brx * 0.3, bry * 0.42, 0.3, L.spot); ell(g, bx + brx * 0.3, by + 2, brx * 0.26, bry * 0.36, -0.4, L.spot); }
+  if (L.pattern === 'patches') { ell(g, bx - brx * 0.35, by - 3, brx * 0.4, bry * 0.5, 0.2, L.spot); ell(g, bx + brx * 0.45, by + 3, brx * 0.22, bry * 0.4, 0, L.spot); }
+  if (L.pattern === 'stripes') stripes(g, bx, by, brx, bry, L.dark);
+  if (L.poodle) fluff(g, bx + brx * 0.55, by + 1, 6, 6.5, L.fur, 10);   // fluffy chest
   if (Gm.haunch) circ(g, Gm.haunch[0], Gm.haunch[1], Gm.haunch[2], L.fur);
   // front legs
-  const fl = Gm.legs.length === 4 ? Gm.legs.slice(2) : Gm.legs;
+  const fl = standing ? legs.slice(2) : legs;
   fl.forEach(l => leg(g, l[0], l[1], l[2], L.fur));
+  if (L.poodle) legs.forEach(l => { if (l[2] >= 6) circ(g, l[0], l[1] + l[2] - 3, 3.6, L.fur); });   // pom-poms at the ankles
   // collar
   if (o.collar) {
     ell(g, Gm.collar[0], Gm.collar[1], 2.4, 6.8, -0.35, o.collar);
@@ -210,23 +257,28 @@ function drawPuppy(g, L, poseName, o) {
   }
   // head
   if (L.shaggy) fluff(g, hx, hy, hr, hr, L.fur, 14); else circ(g, hx, hy, hr, L.fur);
+  if (L.poodle) fluff(g, hx - 1, hy - 7.5, 5.5, 4.5, L.fur, 9);   // top-knot
   if (L.pattern === 'mask') { ell(g, hx - 1, hy - 4, 8.5, 5.5, 0, L.dark); circ(g, hx + 4, hy + 2, 6, L.light); }
   if (L.pattern === 'saddle') ell(g, hx + 5, hy + 1.5, 6, 4.5, 0, L.dark);
   if (L.pattern === 'spots') circ(g, hx - 2, hy - 4, 1.7, L.spot);
-  if (L.pattern === 'patch') ell(g, hx - 2, hy - 5, 6, 4, 0, L.dark);
+  if (L.pattern === 'patch' || L.pattern === 'patches') ell(g, hx - 2, hy - 5, 6, 4, 0, L.pattern === 'patch' ? L.dark : L.spot);
+  if (L.pattern === 'bigspots') circ(g, hx + 3, hy - 3, 3.2, L.spot);   // an eye patch
   // near ear
-  if (L.ears === 'pointy') pointyEar(g, hx - 4, hy - 6, -1, L.dark, mix(L.dark, '#ffb3c6', 0.5));
+  if (L.pug) ell(g, hx - 4, hy - 7, 2.8, 3.6, -0.5, L.dark);
+  else if (L.ears === 'pointy') pointyEar(g, hx - 4, hy - 6, -1, L.dark, mix(L.dark, '#ffb3c6', 0.5));
+  else if (L.poodle) fluff(g, hx - 4, hy + 2, 3.8, 6.5, L.dark, 8);
   else ell(g, hx - 4.5, hy + 1, 3.6, 7, -0.3, L.dark);
-  // snout, nose, mouth
-  ell(g, hx + 6.5, hy + 2.5, 5.2, 3.9, 0, L.light);
-  circ(g, hx + 10, hy + 0.8, 1.9, '#2b1a12');
+  // snout, nose, mouth (pugs have a short dark muzzle)
+  if (L.pug) { ell(g, hx + 5.5, hy + 3, 4.6, 3.6, 0, L.dark); circ(g, hx + 7.5, hy + 1.6, 1.9, '#2b1a12'); }
+  else { ell(g, hx + 6.5, hy + 2.5, 5.2, 3.9, 0, L.light); circ(g, hx + 10, hy + 0.8, 1.9, '#2b1a12'); }
   g.strokeStyle = '#2b1a12'; g.lineWidth = 0.8;
-  g.beginPath(); g.arc(hx + 8.5, hy + 3.2, 1.6, Math.PI * 0.15, Math.PI * 0.85); g.stroke();
-  if (Gm.tongue) ell(g, hx + 8.5, hy + 5.4, 1.5, 2.2, 0, '#ff7aa2');
-  // eyes
+  g.beginPath(); g.arc(hx + (L.pug ? 6.5 : 8.5), hy + 3.4, 1.6, Math.PI * 0.15, Math.PI * 0.85); g.stroke();
+  if (Gm.tongue) ell(g, hx + (L.pug ? 6.5 : 8.5), hy + 5.4, 1.5, 2.2, 0, '#ff7aa2');
+  // eyes (pugs: big and wide-set)
+  const er = L.pug ? 2.1 : 1.6, e1 = L.pug ? 1.5 : 2.5, e2 = L.pug ? 8.5 : 7.8;
   if (Gm.eyes === 'open') {
-    circ(g, hx + 2.5 + ex, hy - 2.5 + ey, 1.6, '#1b1b1b'); circ(g, hx + 7.8 + ex, hy - 3 + ey, 1.6, '#1b1b1b');
-    circ(g, hx + 2 + ex, hy - 3 + ey, 0.55, '#fff'); circ(g, hx + 7.3 + ex, hy - 3.5 + ey, 0.55, '#fff');
+    circ(g, hx + e1 + ex, hy - 2.5 + ey, er, '#1b1b1b'); circ(g, hx + e2 + ex, hy - 3 + ey, er, '#1b1b1b');
+    circ(g, hx + e1 - 0.5 + ex, hy - 3 + ey, 0.55, '#fff'); circ(g, hx + e2 - 0.5 + ex, hy - 3.5 + ey, 0.55, '#fff');
   } else if (Gm.eyes === 'happy') {
     g.strokeStyle = '#1b1b1b'; g.lineWidth = 1.3; g.lineCap = 'round';
     g.beginPath(); g.arc(hx + 2.5, hy - 2, 1.8, Math.PI, TAU); g.stroke();
@@ -238,9 +290,10 @@ function drawPuppy(g, L, poseName, o) {
   if (Gm.blush) circ(g, hx + 1.5, hy + 1.5, 1.9, 'rgba(255,110,150,0.45)');
 }
 
-// sprite cache: sprites[look][pose][facing(0 = right, 1 = left)] = [96px, 48px, 24px] mip levels.
-// Drawing a pre-shrunk copy is much cheaper (and smoother) than shrinking the 96px one on every draw.
-const SPR = 96, SPR_SCALE = 2, SPR_OX = 48, SPR_OY = 50;
+// sprite cache: sprites[look][pose][facing(0 = right, 1 = left)] = [112px, 56px, 28px] mip levels.
+// Drawing a pre-shrunk copy is much cheaper (and smoother) than shrinking the big one on every draw.
+// (112 wide leaves room for a dachshund's nose and tail.)
+const SPR = 112, SPR_SCALE = 2, SPR_OX = 56, SPR_OY = 50;
 const sprites = [];
 function shrink(src, size) {
   const c = document.createElement('canvas'); c.width = c.height = size;
@@ -257,8 +310,8 @@ function makeSprites() {
         const g = c.getContext('2d');
         g.translate(SPR_OX, SPR_OY); g.scale(SPR_SCALE * (f ? -1 : 1), SPR_SCALE);
         drawPuppy(g, LOOKS[l], POSES[p], {});
-        const c48 = shrink(c, 48);
-        sprites[l][p][f] = [c, c48, shrink(c48, 24)];
+        const half = shrink(c, SPR / 2);
+        sprites[l][p][f] = [c, half, shrink(half, SPR / 4)];
       }
     }
   }
@@ -598,7 +651,7 @@ function puppyAt(x, y) {
   let best = null, bd = 1e9;
   eachNear(x, y, 40, (p) => {
     // hit box roughly matches the drawn body + head
-    const dx = (x - p.x) / (22 * p.size), dy = (y - (p.y - 3 * p.size)) / (16 * p.size);
+    const dx = (x - p.x) / ((LOOKS[p.look].long ? 28 : 22) * p.size), dy = (y - (p.y - 3 * p.size)) / (16 * p.size);
     const d = dx * dx + dy * dy;
     if (d < 1 && d < bd) { bd = d; best = p; }
   });
@@ -1363,7 +1416,7 @@ function render() {
       const sx = ox + p.x * z, sy = oy + p.y * z;
       const pose = poseOf(p);
       const lv = sprites[p.look][pose][p.facing < 0 ? 1 : 0];
-      const img = px >= 72 ? lv[0] : px >= 36 ? lv[1] : lv[2];
+      const img = px >= SPR * 0.75 ? lv[0] : px >= SPR * 0.375 ? lv[1] : lv[2];
       if (p.rot) {   // rolling over: spin the sprite about the body centre
         ctx.setTransform(dpr, 0, 0, dpr, sx, sy); ctx.rotate(p.rot);
         ctx.drawImage(img, -SPR_OX * k, -SPR_OY * k, px, px);
