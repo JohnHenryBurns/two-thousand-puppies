@@ -173,7 +173,8 @@ function ell(g, x, y, rx, ry, rot, color) { g.fillStyle = color; g.beginPath(); 
 function circ(g, x, y, r, color) { g.fillStyle = color; g.beginPath(); g.arc(x, y, r, 0, TAU); g.fill(); }
 function leg(g, x, top, len, color) {
   g.strokeStyle = color; g.lineWidth = 5.5; g.lineCap = 'round';
-  g.beginPath(); g.moveTo(x, top + 2.5); g.lineTo(x, top + len - 2.7); g.stroke();
+  // starts a little above 'top', tucked inside the body, so legs near the thin ends of a body ellipse still meet it
+  g.beginPath(); g.moveTo(x, top - 1); g.lineTo(x, top + len - 2.7); g.stroke();
 }
 // an ellipse with a scalloped edge: shaggy fur
 function fluff(g, x, y, rx, ry, color, n) {
@@ -207,9 +208,9 @@ function drawPuppy(g, L, poseName, o) {
   let [tx, ty, ta] = Gm.tail;
   const standing = legs.length === 4;
   // body types
-  if (L.long) {   // dachshund: long body, short legs, head further forward
+  if (L.long) {   // dachshund: long low body, short legs, head further forward
     brx *= standing ? 1.5 : 1.25; bx -= 2; hx += 5;
-    if (standing) { legs = legs.map(l => [l[0] + (l[0] < 0 ? -5 : 5), l[1] + 3, l[2] - 3]); tx -= 7; } else tx -= 3;
+    if (standing) { by += 1.5; hy += 1.5; ty += 1.5; legs = legs.map(l => [l[0] + (l[0] < 0 ? -4 : 4), l[1] + 3, l[2] - 3]); tx -= 7; } else tx -= 3;
   }
   if (L.slim) bry *= 0.85;   // great dane: lean
   const a = ta + wag;
