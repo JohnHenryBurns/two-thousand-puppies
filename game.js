@@ -208,9 +208,9 @@ function drawPuppy(g, L, poseName, o) {
   let [tx, ty, ta] = Gm.tail;
   const standing = legs.length === 4;
   // body types
-  if (L.long) {   // dachshund: long low body, short legs, head further forward
-    brx *= standing ? 1.5 : 1.25; bx -= 2; hx += 5;
-    if (standing) { by += 1.5; hy += 1.5; ty += 1.5; legs = legs.map(l => [l[0] + (l[0] < 0 ? -4 : 4), l[1] + 3, l[2] - 3]); tx -= 7; } else tx -= 3;
+  if (L.long) {   // dachshund: gloriously long low body, short legs, head way out front
+    brx *= standing ? 1.9 : 1.5; bx -= 2; hx += standing ? 8 : 6;
+    if (standing) { by += 1.5; hy += 1.5; ty += 1.5; legs = legs.map(l => [l[0] + (l[0] < 0 ? -6 : 6), l[1] + 3, l[2] - 3]); tx -= 12; } else tx -= 6;
   }
   if (L.slim) bry *= 0.85;   // great dane: lean
   const a = ta + wag;
@@ -291,10 +291,10 @@ function drawPuppy(g, L, poseName, o) {
   if (Gm.blush) circ(g, hx + 1.5, hy + 1.5, 1.9, 'rgba(255,110,150,0.45)');
 }
 
-// sprite cache: sprites[look][pose][facing(0 = right, 1 = left)] = [112px, 56px, 28px] mip levels.
+// sprite cache: sprites[look][pose][facing(0 = right, 1 = left)] = [136px, 68px, 34px] mip levels.
 // Drawing a pre-shrunk copy is much cheaper (and smoother) than shrinking the big one on every draw.
-// (112 wide leaves room for a dachshund's nose and tail.)
-const SPR = 112, SPR_SCALE = 2, SPR_OX = 56, SPR_OY = 50;
+// (136 wide leaves room for a dachshund's nose and tail.)
+const SPR = 136, SPR_SCALE = 2, SPR_OX = 68, SPR_OY = 50;
 const sprites = [];
 function shrink(src, size) {
   const c = document.createElement('canvas'); c.width = c.height = size;
@@ -652,7 +652,7 @@ function puppyAt(x, y) {
   let best = null, bd = 1e9;
   eachNear(x, y, 40, (p) => {
     // hit box roughly matches the drawn body + head
-    const dx = (x - p.x) / ((LOOKS[p.look].long ? 28 : 22) * p.size), dy = (y - (p.y - 3 * p.size)) / (16 * p.size);
+    const dx = (x - p.x) / ((LOOKS[p.look].long ? 34 : 22) * p.size), dy = (y - (p.y - 3 * p.size)) / (16 * p.size);
     const d = dx * dx + dy * dy;
     if (d < 1 && d < bd) { bd = d; best = p; }
   });
