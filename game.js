@@ -86,21 +86,94 @@ const dayDate = n => new Date(birthday.getTime() + (n - 1) * DAY_MS);
 
 // ============================================================ NAMES & LOOKS
 const NAMES = ('Biscuit Waffles Pancake Maple Peanut Mochi Noodle Pickles Sprinkles Cupcake Muffin Cookie Bean Pudding ' +
-  'Marshmallow Honey Buttons Pebble Clover Daisy Poppy Rosie Lily Tulip Willow Hazel Olive Pepper Ginger Cinnamon Nutmeg ' +
-  'Cocoa Fudge Brownie Toffee Caramel Butterscotch Jellybean Gumdrop Lollipop Bubbles Fizz Ziggy Zoom Dash Rocket Comet ' +
-  'Star Twinkle Sunny Sky Cloud Rain Snowy Frosty Winter Summer Autumn Meadow River Brook Ocean Sandy Coral Pearl Ruby ' +
-  'Jade Amber Goldie Silver Copper Penny Nickel Lucky Charm Magic Pixie Fairy Dragon Puff Fluffy Fuzzy Wiggles Giggles ' +
-  'Tickles Nibbles Snuggles Cuddles Huggy Smiley Happy Jolly Merry Joy Peaches Plum Berry Cherry Apple Mango Kiwi Lemon ' +
-  'Lime Coconut Banana Melon Pumpkin Tater Spud Fries Pretzel Bagel Donut Churro Taco Nacho Burrito Pizza Pasta Ravioli ' +
-  'Gnocchi Dumpling Wonton Sushi Miso Tofu Boba Latte Mocha Chai Milo Otis Oscar Ollie Archie Alfie Teddy Freddie Charlie ' +
-  'Buddy Max Sam Toby Benji Bailey Bella Luna Lola Molly Millie Coco Ellie Tilly Nala Winnie Maggie Sadie Zoe Piper Hattie ' +
-  'Dottie Patches Spot Freckles Speckle Domino Oreo Panda Socks Mittens Boots Scout Ranger Bear Moose Wolfie Foxy Bunny ' +
-  'Duckie Goose Kitty Piglet Lamb Tigger Simba Nemo Dory Stitch Yoshi Kirby Sonic Peach Toad Elsa Anna Olaf Moana Ariel ' +
-  'Belle Jasmine Aurora Tiana Merida Doodle Scribble Squiggle Wobble Bounce Skip Hop Tumble Twirl Spin Zip Zap Bolt Flash ' +
-  'Sparky Blaze Ember Smokey Ash Shadow Midnight Dusk Dawn Sunrise Sunset Pippa Poppet Button Truffle Snickers Skittles ' +
-  'Rolo Twix Kitkat Wafer Crumpet Scone Cheerio Pudsey Basil Parsley Sage Rosemary Thyme Juniper Ivy Fern Moss Acorn ' +
-  'Chestnut Walnut Almond Cashew Pistachio Sesame Poppyseed Mango Guava Papaya Lychee Tango Rumba Salsa Disco Jazz ' +
-  'Bongo Banjo Fiddle Piccolo Bugle Trumpet Harmony Melody Lyric Rhythm Cadence Tempo Whistle Echo Yodel Chirp Tweet').split(' ');
+  'Marshmallow Honey Buttons Pebble Clover Daisy Poppy Rosie Lily Tulip Willow Hazel Olive Pepper Ginger Cinnamon ' +
+  'Nutmeg Cocoa Fudge Brownie Toffee Caramel Butterscotch Jellybean Gumdrop Lollipop Bubbles Fizz Ziggy Zoom Dash ' +
+  'Rocket Comet Star Twinkle Sunny Sky Cloud Rain Snowy Frosty Winter Summer Autumn Meadow River Brook Ocean Sandy ' +
+  'Coral Pearl Ruby Jade Amber Goldie Silver Copper Penny Nickel Lucky Charm Magic Pixie Fairy Dragon Puff Fluffy ' +
+  'Fuzzy Wiggles Giggles Tickles Nibbles Snuggles Cuddles Huggy Smiley Happy Jolly Merry Joy Peaches Plum Berry ' +
+  'Cherry Apple Mango Kiwi Lemon Lime Coconut Banana Melon Pumpkin Tater Spud Fries Pretzel Bagel Donut Churro Taco ' +
+  'Nacho Burrito Pizza Pasta Ravioli Gnocchi Dumpling Wonton Sushi Miso Tofu Boba Latte Mocha Chai Milo Otis Oscar ' +
+  'Ollie Archie Alfie Teddy Freddie Charlie Buddy Max Sam Toby Benji Bailey Bella Luna Lola Molly Millie Coco Ellie ' +
+  'Tilly Nala Winnie Maggie Sadie Zoe Piper Hattie Dottie Patches Spot Freckles Speckle Domino Oreo Panda Socks ' +
+  'Mittens Boots Scout Ranger Bear Moose Wolfie Foxy Bunny Duckie Goose Kitty Piglet Lamb Tigger Simba Nemo Dory ' +
+  'Stitch Yoshi Kirby Sonic Peach Toad Elsa Anna Olaf Moana Ariel Belle Jasmine Aurora Tiana Merida Doodle Scribble ' +
+  'Squiggle Wobble Bounce Skip Hop Tumble Twirl Spin Zip Zap Bolt Flash Sparky Blaze Ember Smokey Ash Shadow ' +
+  'Midnight Dusk Dawn Sunrise Sunset Pippa Poppet Button Truffle Snickers Skittles Rolo Twix Kitkat Wafer Crumpet ' +
+  'Scone Cheerio Pudsey Basil Parsley Sage Rosemary Thyme Juniper Ivy Fern Moss Acorn Chestnut Walnut Almond Cashew ' +
+  'Pistachio Sesame Poppyseed Guava Papaya Lychee Tango Rumba Salsa Disco Jazz Bongo Banjo Fiddle Piccolo Bugle ' +
+  'Trumpet Harmony Melody Lyric Rhythm Cadence Tempo Whistle Echo Yodel Chirp Tweet Rex Rover Fido Spike Rocky Duke ' +
+  'Zeus Thor Loki Odin Apollo Ace Bruno Bandit Brutus Chester Cooper Diesel Dexter Finn Gus Hank Harley Jack Jake ' +
+  'Jasper Kobe Leo Louie Marley Murphy Oliver Ozzy Rusty Sammy Tucker Winston Zack Baxter Beau Bentley Blue Bo ' +
+  'Boomer Brady Cash Chance Chip Cody Dakota Denver Django Eddie Elvis Frankie George Gizmo Gunner Hugo Jax Jethro ' +
+  'Kai King Koda Lenny Maverick Mickey Monty Ned Nico Odie Percy Ralph Remy Rocco Roscoe Rudy Rufus Samson Scooby ' +
+  'Simon Snoopy Stanley Tank Titan Tyson Vinnie Wally Walter Yogi Zorro Abby Angel Annie Athena Ava Bonnie Brandy ' +
+  'Callie Chloe Cleo Dixie Dolly Emma Eva Fiona Gigi Grace Gracie Heidi Holly Izzy Jenny Josie Juno Kiki Lacey ' +
+  'Layla Lexi Libby Lucy Lulu Mabel Macy Maddie Maisie Mia Mila Minnie Missy Nellie Nora Phoebe Riley Roxy Sasha ' +
+  'Scarlett Sophie Stella Sugar Sydney Tessa Trixie Violet Zara Zelda Zoey Biscotti Baguette Brioche Crouton ' +
+  'Croissant Popcorn Macaroni Ziti Penne Rigatoni Linguine Tortellini Pierogi Pita Falafel Hummus Queso Tamale ' +
+  'Empanada Wasabi Nori Edamame Tempura Teriyaki Ramen Udon Kimchi Curry Naan Samosa Chutney Paella Tapas Gouda ' +
+  'Brie Cheddar Feta Mozzarella Ricotta Parmesan Provolone Havarti Colby Pesto Oregano Paprika Saffron Cumin Clove ' +
+  'Anise Vanilla Praline Nougat Fondue Sorbet Gelato Sundae Crepe Flapjack Syrup Butter Gravy Meatball Kebab Gyro ' +
+  'Radish Turnip Parsnip Beet Yam Squash Pea Lentil Chickpea Chili Jalapeno Tabasco Ketchup Mustard Mayo Relish ' +
+  'Taffy Candy Gummy Jelly Jam Marmalade Custard Trifle Eclair Macaron Meringue Souffle Tiramisu Cannoli Strudel ' +
+  'Pastry Danish Cruller Fritter Bonbon Nutella Smores Blondie Cheesecake Shortcake Pie Tart Cobbler Crumble ' +
+  'Frosting Icing Glaze Sherbet Popsicle Lolly Gumball Bubblegum Licorice Peppermint Spearmint Cappuccino Macchiato ' +
+  'Cortado Frappe Matcha Oolong Rooibos Cider Cola Soda Tonic Lemonade Limeade Smoothie Milkshake Nectar Punch ' +
+  'Boulder Cobble Flint Slate Granite Marble Onyx Opal Topaz Garnet Sapphire Emerald Diamond Crystal Quartz ' +
+  'Amethyst Ivory Ebony Bronze Nugget Sterling Cobalt Indigo Lavender Lilac Magenta Crimson Rose Blush Apricot ' +
+  'Tangerine Clementine Mandarin Sienna Umber Ochre Sable Raven Jet Smoky Misty Foggy Breezy Windy Stormy Thunder ' +
+  'Lightning Cinder Spark Flicker Glimmer Shimmer Sparkle Glitter Dazzle Starlight Moonbeam Sunbeam Sunshine ' +
+  'Rainbow Nova Cosmo Astro Orbit Meteor Galaxy Nebula Jupiter Saturn Neptune Pluto Mercury Venus Mars Sol Solar ' +
+  'Lunar Eclipse Zenith Halo Cloudy Nimbus Cumulus Drizzle Puddle Splash Ripple Wave Tide Surf Reef Kelp Dune Mesa ' +
+  'Canyon Ridge Summit Peak Alpine Aspen Birch Cedar Cypress Elm Fir Hickory Laurel Magnolia Oak Pine Redwood ' +
+  'Sequoia Spruce Sycamore Yew Bramble Briar Bracken Heather Thistle Daffodil Dahlia Iris Lotus Marigold Orchid ' +
+  'Pansy Peony Petunia Primrose Zinnia Buttercup Bluebell Snowdrop Foxglove Honeysuckle Sorrel Mint Dill Fennel ' +
+  'Chive Tarragon Cilantro Lemongrass Robin Wren Finch Sparrow Starling Jay Kestrel Falcon Hawk Owl Pelican Puffin ' +
+  'Penguin Otter Beaver Badger Ferret Weasel Marmot Chipmunk Squirrel Hedgehog Possum Koala Wombat Kanga Joey Cub ' +
+  'Fawn Kit Pup Tadpole Minnow Guppy Newt Gecko Dino Bloop Blip Boop Beep Zoop Ping Pong Bing Bong Dingle Jingle ' +
+  'Jangle Tinkle Twang Boing Sproing Zing Whiz Whizzy Fizzle Sizzle Snap Crackle Pop Whoosh Swoosh Zoomer Jiggle ' +
+  'Waddle Toddle Scamper Scurry Scoot Scooter Skipper Hopper Bouncer Bounder Rascal Scamp Scallywag Rowdy Rumble ' +
+  'Fumble Bumble Grumble Mumbles Snickerdoodle Snorkel Snuffle Snuffles Sniffles Sniff Snout Whiskers Puffball ' +
+  'Furball Fuzzball Fuzz Frizz Frizzle Curly Shaggy Scruffy Scrappy Dotty Spotty Speckles Freckle Sprout Bud ' +
+  'Blossom Bloom Petal Twig Pip Pippin Pipsqueak Squirt Smidge Smidgen Munchkin Dizzy Ditzy Loopy Goofy Wacky Zany ' +
+  'Kooky Nutty Batty Giddy Perky Peppy Zippy Zesty Spunky Frisky Feisty Sassy Cheeky Chipper Dandy Jazzy Groovy ' +
+  'Funky Boogie Bebop Mambo Polka Waltz Twist Shimmy Shuffle Jitterbug Jive Lego Marbles Yoyo Kite Frisbee Tonka ' +
+  'Rattle Crayon Sketch Pencil Paintbrush Ribbon Bow Bowtie Buckle Zipper Velcro Pocket Slipper Sandal Beanie ' +
+  'Bonnet Tutu Pompom Tassel Fringe Sequin Bauble Trinket Locket Bangle Bead Duchess Earl Baron Countess Prince ' +
+  'Queenie Kingston Regal Royal Majesty Noble Knight Squire Paladin Pilot Sailor Admiral Major Colonel Sarge Chief ' +
+  'Boss Pal Chum Mate Amigo Bestie Sidekick Champ Hero Legend Wonder Marvel Miracle Blessing Treasure Jewel Gem ' +
+  'Precious Darling Sweetie Sweetpea Honeybun Honeybee Bumblebee Ladybug Junebug Cricket Grasshopper Firefly ' +
+  'Dragonfly Butterfly Beetle Doodlebug Tumbleweed Dandelion Milkweed Boston Brooklyn Dallas Austin Phoenix Memphis ' +
+  'Nashville Savannah Cheyenne Montana Nevada Sierra Cairo Rio Paris London Dublin Vienna Kyoto Tokyo Oslo Fiji ' +
+  'Bali Havana Lima Milan Roma Brisbane Tahoe Vail Yukon Juneau Everest Sahara Gobi Amazon Nile Congo Danube Rhine ' +
+  'Thames Hudson Ohio Georgia Carolina Virginia Indiana Florida Alaska Kenya Cuba Java Sumatra Borneo Tasmania ' +
+  'Zanzibar Waffle Pumpernickel Sourdough Focaccia Ciabatta Challah Rye Crumb Crust Toast Toastie Bap Bun Roll ' +
+  'Grits Polenta Risotto Quinoa Couscous Tabouli Bulgur Barley Oat Oatie Oatmeal Porridge Granola Muesli Cheerios ' +
+  'Flake Pancakes Blini Latke Rosti Hashbrown Tot Wedge Chippy Crisp Crinkle Onion Shallot Leek Scallion Garlic ' +
+  'Ginkgo Bonsai Bamboo Sakura Ume Yuzu Kumquat Persimmon Pomelo Pawpaw Plantain Jackfruit Durian Rambutan ' +
+  'Mangosteen Dragonfruit Starfruit Passionfruit Elderberry Gooseberry Huckleberry Mulberry Boysenberry Cloudberry ' +
+  'Cranberry Bilberry Currant Raisin Sultana Prune Fig Date Medjool Olivia Sophia Isabella Charlotte Amelia Harper ' +
+  'Evelyn Abigail Emily Ella Avery Madison Aria Penelope Camila Eleanor Hannah Addison Natalie Leah Savvy Brooklynn ' +
+  'Audrey Claire Skylar Lillian Aubrey Paisley Everly Anniston Naomi Elena Sarah Ariana Allison Gabriella Alice ' +
+  'Madelyn Cora Vivian Liam Noah Elijah James Benjamin Lucas Mason Ethan Logan Aiden Sebastian Caleb Owen Wyatt ' +
+  'Levi Julian Isaac Grayson Lincoln Jaxon Asher Mateo Ezra Miles Nolan Silas Beckett Rowan Jude Emmett Arlo Atlas ' +
+  'Axel Bodhi Brooks Cruz Ezekiel Felix Gideon Harrison Hendrix Holden Ira Kane Kylo Lars Lennox Magnus Nash Orion ' +
+  'Otto Quincy Reid Rhett Ronin Sawyer Soren Tate Theo Titus Vance Wade Xander Zane Zeke Alba Anya Beatrix Bree ' +
+  'Calla Clementina Delilah Della Dulcie Edie Effie Elodie Enid Esme Etta Flora Frida Greta Gwen Hilda Ida Ines ' +
+  'Isla Jemima Jolene Kaia Leni Lottie Mae Marnie Mazie Nell Nina Odette Ottilie Pomeline Posy Quinn Ramona Romy ' +
+  'Sukie Tilda Una Vera Wilhelmina Winifred Xanthe Yara Zadie Zuzu Abbott Alden Ambrose Amos Angus Archer Arthur ' +
+  'Barnaby Bertie Bram Caspian Cedric Clancy Clyde Cormac Cyrus Dashiell Dermot Digby Dudley Edmund Elmo Emil Ernie ' +
+  'Fergus Fitz Floyd Gilbert Godfrey Gulliver Hamish Hector Horace Humphrey Ignatius Inigo Jarvis Jeeves Jonty ' +
+  'Kenji Lachlan Ludo Mungo Murdo Nigel Norbert Obie Ozzie Perkins Piers Quentin Reggie Rollo Rupert Seamus ' +
+  'Sherlock Sidney Tarquin Thaddeus Tobias Wilbur Wilfred Woody Yannick Bartholomew Chewie Ewok Wookiee Yoda Grogu ' +
+  'Mando Padme Leia Han Solo Rey Poe Artoo Threepio Groot Hulk Stark Wanda Pikachu Eevee Snorlax Jigglypuff ' +
+  'Bulbasaur Charmander Squirtle Togepi Psyduck Meowth Ditto Totoro Ponyo Mei Chihiro Haku Calcifer Howl Nausicaa ' +
+  'Bluey Bingo Chilli Judo Peppa Suzy Pedro Rebecca Gerald Danny Wendy Paw Chase Marshall Skye Rubble Zuma Tracker ' +
+  'Liberty Ryder Pupcorn Puppuccino Pupsicle Pupcake Puppermint Pupperoni Pupster Woofer Woofie Barkley Barksy ' +
+  'Barker Howler Yapper Yippy Ruffles Ruffian Rufflebutt Snorty Snuggly Cuddlebug Lovebug Huggle Squishy Squish ' +
+  'Chunk Chunky Chubby Chubs Pudge Pudgy Tubby Tubs Roly Poly Rolypoly Dumpy Lumpy Stumpy Stubby Shorty Smalls ' +
+  'Bitsy Itsy Teeny Weeny Wee Peewee Mini Dinky Pipkin Bumpkin Lumpkin Napkin Munchie Crunchy Crunch Chompers Chomp ' +
+  'Gnasher Snapper Nipper Nibbler').split(' ');
 
 // ears: 'floppy' | 'pointy'; shaggy: fluffy outline; tail: 'wag' | 'curl'; sz: breed size multiplier
 const LOOKS = [
@@ -365,14 +438,28 @@ function makeFlowerSprites(cols) {
 
 // ============================================================ PUPPIES
 const puppies = new Array(N);
-const shuffledNames = shuffle(NAMES.slice(), mulberry32(20000));
+// Every puppy gets its own name: the plain names first (shuffled, but the same shuffle every time so puppy #7 is
+// always the same puppy), then title combos like "Sir Biscuit" or "Little Waffles" for the rest.
+const TITLES = ['Little', 'Sir', 'Lady', 'Baby', 'Captain', 'Princess', 'Professor', 'Big'];
+function buildNames(count) {
+  const rng = mulberry32(20000);
+  const base = shuffle([...new Set(NAMES)], rng);
+  const out = base.slice(0, count), used = new Set(out);
+  const pool = shuffle(base.slice(), rng);
+  for (let k = 0; out.length < count && k < 100000; k++) {
+    const name = TITLES[(k + ((k / pool.length) | 0)) % TITLES.length] + ' ' + pool[k % pool.length];
+    if (!used.has(name)) { used.add(name); out.push(name); }
+  }
+  return out;
+}
+const shuffledNames = buildNames(N);
 function makePuppies() {
   const pettedStr = store.get('petted' + KEY, '');
   for (let i = 0; i < N; i++) {
     const r = mulberry32(1000 + i * 7919);
     puppies[i] = {
       i, x: rnd(MARGIN + 20, WORLD.w - MARGIN - 20), y: rnd(MARGIN + 20, WORLD.h - MARGIN - 20), vx: 0, vy: 0,
-      look: 0, size: 1, name: shuffledNames[i % shuffledNames.length],
+      look: 0, size: 1, name: shuffledNames[i],
       collar: COLLARS[(r() * COLLARS.length) | 0], facing: r() < 0.5 ? 1 : -1,
       state: 'idle', t: r() * 4, tx: 0, ty: 0, obj: null, petted: pettedStr[i] === '1',
       anim: r() * 10, wag: r() * TAU, idlePose: r() < 0.4 ? 'sit' : 'stand', lastPet: -9, fx: 0, fy: 0, px: 0, py: 0
