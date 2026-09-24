@@ -1296,24 +1296,27 @@ function startIntro() {
   p.state = 'happy'; p.t = 3;
   cam.x = camT.x = p.x; cam.y = camT.y = p.y - 6; cam.zoom = camT.zoom = 5;
   intro = { t: 0, sx: cam.x, sy: cam.y, done: false };
-  showCard(p, 0);
+  $('card').classList.add('hidden'); selected = null;   // no puppy starts out selected
   $('bignum-n').textContent = '1'; $('bignum-label').textContent = 'puppy';
   $('bignum').classList.remove('hidden');
 }
 function skipIntro() {
   // jump straight to the end of the reveal (the whole field, all 2,000 in view)
   if (!intro) return;
-  intro.t = 2.6 + 9; intro.seen = N; intro.shown = N;
+  intro.t = INTRO_HOLD + 9; intro.seen = N; intro.shown = N;
   updateIntro(0);
 }
+const INTRO_HOLD = 0.6;   // a short beat on puppy #1 before the zoom-out; the count starts ticking right away
 function updateIntro(dt) {
   intro.t += dt;
   const p = puppies[0];
-  if (intro.t < 2.6) { cam.x = camT.x = p.x; cam.y = camT.y = p.y - 6; if (p.state !== 'happy') { p.state = 'happy'; p.t = 1; } return; }
-  const prog = clamp((intro.t - 2.6) / 9, 0, 1), e = easeInOut(prog);
-  cam.zoom = Math.exp(lerp(Math.log(5), Math.log(minZoom()), e));
-  cam.x = lerp(intro.sx, WORLD.w / 2, e); cam.y = lerp(intro.sy, WORLD.h / 2, e);
-  clampCam(cam); Object.assign(camT, cam);
+  const prog = clamp((intro.t - INTRO_HOLD) / 9, 0, 1), e = easeInOut(prog);
+  if (intro.t < INTRO_HOLD) { cam.x = camT.x = p.x; cam.y = camT.y = p.y - 6; if (p.state !== 'happy') { p.state = 'happy'; p.t = 1; } }
+  else {
+    cam.zoom = Math.exp(lerp(Math.log(5), Math.log(minZoom()), e));
+    cam.x = lerp(intro.sx, WORLD.w / 2, e); cam.y = lerp(intro.sy, WORLD.h / 2, e);
+    clampCam(cam); Object.assign(camT, cam);
+  }
   // The count only ever climbs (the view can drift off a dense patch while panning), and it is animated:
   // one puppy at a time at first, so a kid can read 1, 2, 3, 4... before it races up to 2,000.
   intro.seen = prog >= 1 ? N : Math.max(intro.seen || 1, visibleCount);
@@ -1321,7 +1324,6 @@ function updateIntro(dt) {
   intro.shown = Math.min(intro.seen, shown + (shown < 10 ? 2.5 : shown * 1.5) * dt);   // 1..10 at 400 ms each, then faster
   const n = Math.floor(intro.shown);
   $('bignum-n').textContent = fmtNum(n); $('bignum-label').textContent = n === 1 ? 'puppy' : 'puppies';
-  if (prog > 0.05) $('card').classList.add('hidden');
   if (prog >= 1 && n >= N) {
     intro = null;
     document.body.classList.remove('intro-running');
