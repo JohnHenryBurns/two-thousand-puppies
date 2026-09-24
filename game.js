@@ -144,12 +144,15 @@ const LOOKS = [
   { fur: '#e8c39e', dark: '#2b2b2b', light: '#e8c39e', pug: true, tail: 'curl', sz: 0.8 },                    // fawn
   { fur: '#2b2b2b', dark: '#111111', light: '#2b2b2b', pug: true, tail: 'curl', sz: 0.8 },                    // black
   // wiener dogs
-  { fur: '#c1633a', dark: '#8d4526', light: '#e8a97e', long: true, sz: 0.85 },                                // red dachshund
-  { fur: '#2b2b2b', dark: '#111111', light: '#c98a4b', long: true, pattern: 'belly', sz: 0.85 },              // black-and-tan dachshund
-  { fur: '#7a4a2a', dark: '#4e2f1b', light: '#b98a62', long: true, pattern: 'bigspots', spot: '#c9a58a', sz: 0.85 }, // chocolate dapple
-  { fur: '#d9b28c', dark: '#a8825e', light: '#f3e2cd', long: true, shaggy: true, sz: 0.85 }                   // wire-haired dachshund
+  { fur: '#c1633a', dark: '#8d4526', light: '#e8a97e', long: true, sz: 0.85, w: 0.4 },                                // red dachshund
+  { fur: '#2b2b2b', dark: '#111111', light: '#c98a4b', long: true, pattern: 'belly', sz: 0.85, w: 0.4 },              // black-and-tan dachshund
+  { fur: '#7a4a2a', dark: '#4e2f1b', light: '#b98a62', long: true, pattern: 'bigspots', spot: '#c9a58a', sz: 0.85, w: 0.4 }, // chocolate dapple
+  { fur: '#d9b28c', dark: '#a8825e', light: '#f3e2cd', long: true, shaggy: true, sz: 0.85, w: 0.4 }                   // wire-haired dachshund
 ];
-LOOKS.forEach(L => { L.mid = mix(L.fur, L.dark, 0.5); L.dot = L.spot ? mix(L.fur, L.spot, 0.3) : L.fur; L.dotPetted = mix(L.dot, '#ff6fa3', 0.5); L.sz = L.sz || 1; L.ears = L.ears || 'floppy'; L.tail = L.tail || 'wag'; });
+LOOKS.forEach(L => { L.mid = mix(L.fur, L.dark, 0.5); L.dot = L.spot ? mix(L.fur, L.spot, 0.3) : L.fur; L.dotPetted = mix(L.dot, '#ff6fa3', 0.5); L.sz = L.sz || 1; L.ears = L.ears || 'floppy'; L.tail = L.tail || 'wag'; L.w = L.w || 1; });
+// weighted pick: a look with w: 0.4 turns up 40% as often as a normal one
+const LOOK_TOTAL_W = LOOKS.reduce((a, L) => a + L.w, 0);
+function pickLook(u) { let x = u * LOOK_TOTAL_W; for (let i = 0; i < LOOKS.length; i++) { x -= LOOKS[i].w; if (x < 0) return i; } return LOOKS.length - 1; }
 const COLLARS = ['#e53935', '#1e88e5', '#43a047', '#fb8c00', '#8e24aa', '#00acc1', '#ff6fa3', '#fdd835'];
 
 // ============================================================ PUPPY DRAWING
@@ -345,7 +348,7 @@ function makePuppies() {
       anim: r() * 10, wag: r() * TAU, idlePose: r() < 0.4 ? 'sit' : 'stand', lastPet: -9, fx: 0, fy: 0, px: 0, py: 0
     };
     const p = puppies[i];
-    p.look = (r() * LOOKS.length) | 0;
+    p.look = pickLook(r());
     p.size = LOOKS[p.look].sz * (0.8 + r() * 0.4);   // breed size times individual variation: roughly 0.5x to 1.6x
     p.r = 13 * p.size;
   }
