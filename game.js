@@ -116,7 +116,7 @@ const LOOKS = [
   { fur: '#b9bcc4', dark: '#5b5f6b', light: '#ffffff', pattern: 'mask', ears: 'pointy', tail: 'curl', sz: 1.15 }, // husky
   { fur: '#c96b3f', dark: '#a0522d', light: '#f3d3b8', shaggy: true, sz: 1.1 },                                // red setter
   { fur: '#f0d9b5', dark: '#e2b07a', light: '#ffffff', pattern: 'spots', spot: '#b5793f' },                    // spotted tan
-  { fur: '#d9a066', dark: '#2e2320', light: '#f2d2a8', pattern: 'saddle', ears: 'pointy', sz: 1.25 },          // shepherd
+  { fur: '#c8935a', dark: '#1c1c1c', light: '#e9c99a', pattern: 'saddle', muzzle: true, ears: 'pointy', sz: 1.3 },   // german shepherd: black saddle and muzzle
   { fur: '#f7f4ec', dark: '#dcd6c8', light: '#ffffff', shaggy: true, ears: 'pointy', sz: 0.75 },               // westie
   { fur: '#c9ccd2', dark: '#8b8f98', light: '#ffffff', pattern: 'belly', shaggy: true, sz: 1.3 },              // sheepdog
   { fur: '#f2c69b', dark: '#d9a677', light: '#fff4e6', shaggy: true, sz: 0.8 },                                // apricot poodle
@@ -147,7 +147,19 @@ const LOOKS = [
   { fur: '#c1633a', dark: '#8d4526', light: '#e8a97e', long: true, sz: 0.85, w: 0.4 },                                // red dachshund
   { fur: '#2b2b2b', dark: '#111111', light: '#c98a4b', long: true, pattern: 'belly', sz: 0.85, w: 0.4 },              // black-and-tan dachshund
   { fur: '#7a4a2a', dark: '#4e2f1b', light: '#b98a62', long: true, pattern: 'bigspots', spot: '#c9a58a', sz: 0.85, w: 0.4 }, // chocolate dapple
-  { fur: '#d9b28c', dark: '#a8825e', light: '#f3e2cd', long: true, shaggy: true, sz: 0.85, w: 0.4 }                   // wire-haired dachshund
+  { fur: '#d9b28c', dark: '#a8825e', light: '#f3e2cd', long: true, shaggy: true, sz: 0.85, w: 0.4 },                  // wire-haired dachshund
+  // chihuahuas: tiny, enormous ears, big eyes
+  { fur: '#d9a874', dark: '#b8864f', light: '#f6e3c6', ears: 'pointy', earSize: 1.6, bigEyes: true, sz: 0.55 },        // fawn
+  { fur: '#2b2b2b', dark: '#111111', light: '#c98a4b', pattern: 'belly', ears: 'pointy', earSize: 1.6, bigEyes: true, sz: 0.55 }, // black-and-tan
+  { fur: '#fbf7f0', dark: '#e6dccc', light: '#ffffff', ears: 'pointy', earSize: 1.6, bigEyes: true, sz: 0.55 },        // white
+  // more fun ones
+  { fur: '#1e1e1e', dark: '#0d0d0d', light: '#c47a3a', pattern: 'tri', sz: 1.35 },                                     // bernese mountain dog
+  { fur: '#1e1e1e', dark: '#0d0d0d', light: '#ffffff', pattern: 'blaze', ears: 'pointy', sz: 1.0 },                    // border collie
+  { fur: '#1e1e1e', dark: '#0d0d0d', light: '#ffffff', pattern: 'blaze', pug: true, ears: 'pointy', sz: 0.8 },         // boston terrier
+  { fur: '#fafafa', dark: '#6d4c2a', light: '#ffffff', pattern: 'patches', spot: '#8d5a2b', long: true, earSize: 1.7, sz: 0.95, w: 0.5 }, // basset hound
+  { fur: '#ffffff', dark: '#ededed', light: '#ffffff', shaggy: true, ears: 'pointy', tail: 'curl', sz: 1.15 },         // samoyed
+  { fur: '#b0bec5', dark: '#78909c', light: '#eceff1', slim: true, ears: 'pointy', earSize: 0.7, sz: 1.35 },           // greyhound
+  { fur: '#c62828', dark: '#8e0000', light: '#ffcdd2', ears: 'pointy', tail: 'curl', shaggy: true, sz: 1.0, w: 0.3 }   // a rare red one, because why not
 ];
 LOOKS.forEach(L => { L.mid = mix(L.fur, L.dark, 0.5); L.dot = L.spot ? mix(L.fur, L.spot, 0.3) : L.fur; L.dotPetted = mix(L.dot, '#ff6fa3', 0.5); L.sz = L.sz || 1; L.ears = L.ears || 'floppy'; L.tail = L.tail || 'wag'; L.w = L.w || 1; });
 // weighted pick: a look with w: 0.4 turns up 40% as often as a normal one
@@ -189,10 +201,11 @@ function fluff(g, x, y, rx, ry, color, n) {
   }
   g.fill();
 }
-function pointyEar(g, x, y, dir, color, inner) {
-  // triangle standing up from (x, y) on the head; dir tilts the tip back
-  g.fillStyle = color; g.beginPath(); g.moveTo(x - 3.2, y + 1); g.lineTo(x + 3.2, y + 1); g.lineTo(x + dir * 1.8, y - 8.5); g.closePath(); g.fill();
-  g.fillStyle = inner; g.beginPath(); g.moveTo(x - 1.5, y + 0.5); g.lineTo(x + 1.5, y + 0.5); g.lineTo(x + dir * 1.2, y - 5.5); g.closePath(); g.fill();
+function pointyEar(g, x, y, dir, color, inner, s) {
+  // triangle standing up from (x, y) on the head; dir tilts the tip back; s scales it (chihuahuas: big)
+  s = s || 1;
+  g.fillStyle = color; g.beginPath(); g.moveTo(x - 3.2 * s, y + 1); g.lineTo(x + 3.2 * s, y + 1); g.lineTo(x + dir * 1.8 * s, y - 8.5 * s); g.closePath(); g.fill();
+  g.fillStyle = inner; g.beginPath(); g.moveTo(x - 1.5 * s, y + 0.5); g.lineTo(x + 1.5 * s, y + 0.5); g.lineTo(x + dir * 1.2 * s, y - 5.5 * s); g.closePath(); g.fill();
 }
 // a few brindle stripes across the body, kept inside the ellipse
 function stripes(g, bx, by, brx, bry, color) {
@@ -230,7 +243,7 @@ function drawPuppy(g, L, poseName, o) {
   }
   // far ear
   if (L.pug) ell(g, hx + 3, hy - 8, 2.6, 3.4, 0.5, L.dark);
-  else if (L.ears === 'pointy') pointyEar(g, hx + 2, hy - 7, 1, L.dark, mix(L.dark, '#ffb3c6', 0.5));
+  else if (L.ears === 'pointy') pointyEar(g, hx + 2, hy - 7, 1, L.dark, mix(L.dark, '#ffb3c6', 0.5), L.earSize);
   else if (L.poodle) fluff(g, hx - 7, hy + 3, 3.4, 6, L.dark, 8);
   else ell(g, hx - 7.5, hy + 2, 3.2, 6.2, -0.25, L.dark);
   // back legs
@@ -248,6 +261,8 @@ function drawPuppy(g, L, poseName, o) {
   if (L.pattern === 'bigspots') { ell(g, bx - brx * 0.45, by - 2, brx * 0.3, bry * 0.42, 0.3, L.spot); ell(g, bx + brx * 0.3, by + 2, brx * 0.26, bry * 0.36, -0.4, L.spot); }
   if (L.pattern === 'patches') { ell(g, bx - brx * 0.35, by - 3, brx * 0.4, bry * 0.5, 0.2, L.spot); ell(g, bx + brx * 0.45, by + 3, brx * 0.22, bry * 0.4, 0, L.spot); }
   if (L.pattern === 'stripes') stripes(g, bx, by, brx, bry, L.dark);
+  if (L.pattern === 'tri') { ell(g, bx + 2, by + 4, brx * 0.6, 3.6, 0, L.light); circ(g, bx + brx * 0.7, by + 1, 4.2, '#ffffff'); }   // tan belly, white chest
+  if (L.pattern === 'blaze') circ(g, bx + brx * 0.7, by + 1, 4.5, '#ffffff');   // white chest
   if (L.poodle) fluff(g, bx + brx * 0.55, by + 1, 6, 6.5, L.fur, 10);   // fluffy chest
   if (Gm.haunch) circ(g, Gm.haunch[0], Gm.haunch[1], Gm.haunch[2], L.fur);
   // front legs
@@ -269,17 +284,32 @@ function drawPuppy(g, L, poseName, o) {
   if (L.pattern === 'bigspots') circ(g, hx + 3, hy - 3, 3.2, L.spot);   // an eye patch
   // near ear
   if (L.pug) ell(g, hx - 4, hy - 7, 2.8, 3.6, -0.5, L.dark);
-  else if (L.ears === 'pointy') pointyEar(g, hx - 4, hy - 6, -1, L.dark, mix(L.dark, '#ffb3c6', 0.5));
+  else if (L.ears === 'pointy') pointyEar(g, hx - 4, hy - 6, -1, L.dark, mix(L.dark, '#ffb3c6', 0.5), L.earSize);
   else if (L.poodle) fluff(g, hx - 4, hy + 2, 3.8, 6.5, L.dark, 8);
-  else ell(g, hx - 4.5, hy + 1, 3.6, 7, -0.3, L.dark);
-  // snout, nose, mouth (pugs have a short dark muzzle)
-  if (L.pug) { ell(g, hx + 5.5, hy + 3, 4.6, 3.6, 0, L.dark); circ(g, hx + 7.5, hy + 1.6, 1.9, '#2b1a12'); }
-  else { ell(g, hx + 6.5, hy + 2.5, 5.2, 3.9, 0, L.light); circ(g, hx + 10, hy + 0.8, 1.9, '#2b1a12'); }
-  g.strokeStyle = '#2b1a12'; g.lineWidth = 0.8;
-  g.beginPath(); g.arc(hx + (L.pug ? 6.5 : 8.5), hy + 3.4, 1.6, Math.PI * 0.15, Math.PI * 0.85); g.stroke();
-  if (Gm.tongue) ell(g, hx + (L.pug ? 6.5 : 8.5), hy + 5.4, 1.5, 2.2, 0, '#ff7aa2');
-  // eyes (pugs: big and wide-set)
-  const er = L.pug ? 2.1 : 1.6, e1 = L.pug ? 1.5 : 2.5, e2 = L.pug ? 8.5 : 7.8;
+  else ell(g, hx - 4.5, hy + 1, 3.6, 7 * (L.earSize || 1), -0.3, L.dark);
+  if (L.pattern === 'blaze') ell(g, hx + 3, hy - 2, 2.2, 7, 0, '#ffffff');   // white stripe down the face
+  // snout, nose, mouth
+  if (L.pug) {
+    // a real pug face: flat, with a dark mask low on the face, the nose pushed up between the eyes, a wide mouth and forehead wrinkles
+    ell(g, hx + 3.5, hy + 3.5, 6, 5, 0, L.dark);
+    circ(g, hx + 5, hy + 0.2, 1.7, '#1a0f0a');
+    g.strokeStyle = '#1a0f0a'; g.lineWidth = 0.9; g.lineCap = 'round';
+    g.beginPath(); g.arc(hx + 5, hy + 2.6, 3.2, Math.PI * 0.12, Math.PI * 0.88); g.stroke();
+    g.beginPath(); g.moveTo(hx + 5, hy + 1.9); g.lineTo(hx + 5, hy + 5.6); g.stroke();
+    g.strokeStyle = L.mid; g.lineWidth = 0.9;
+    g.beginPath(); g.arc(hx + 3, hy - 6.5, 3.5, Math.PI * 1.15, Math.PI * 1.85); g.stroke();
+    g.beginPath(); g.arc(hx + 3, hy - 4.6, 4.2, Math.PI * 1.2, Math.PI * 1.8); g.stroke();
+    if (Gm.tongue) ell(g, hx + 5, hy + 6.3, 1.6, 2.2, 0, '#ff7aa2');
+  } else {
+    ell(g, hx + 6.5, hy + 2.5, 5.2, 3.9, 0, L.muzzle ? L.dark : L.light);
+    circ(g, hx + 10, hy + 0.8, 1.9, '#2b1a12');
+    g.strokeStyle = '#2b1a12'; g.lineWidth = 0.8;
+    g.beginPath(); g.arc(hx + 8.5, hy + 3.4, 1.6, Math.PI * 0.15, Math.PI * 0.85); g.stroke();
+    if (Gm.tongue) ell(g, hx + 8.5, hy + 5.4, 1.5, 2.2, 0, '#ff7aa2');
+  }
+  // eyes (pugs and chihuahuas: big and wide-set)
+  const big = L.pug || L.bigEyes;
+  const er = big ? 2.2 : 1.6, e1 = L.pug ? 0.5 : big ? 1.5 : 2.5, e2 = L.pug ? 9.5 : big ? 8.5 : 7.8;
   if (Gm.eyes === 'open') {
     circ(g, hx + e1 + ex, hy - 2.5 + ey, er, '#1b1b1b'); circ(g, hx + e2 + ex, hy - 3 + ey, er, '#1b1b1b');
     circ(g, hx + e1 - 0.5 + ex, hy - 3 + ey, 0.55, '#fff'); circ(g, hx + e2 - 0.5 + ex, hy - 3.5 + ey, 0.55, '#fff');
