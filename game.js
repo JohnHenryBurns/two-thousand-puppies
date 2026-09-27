@@ -242,8 +242,8 @@ const COLLARS = ['#e53935', '#1e88e5', '#43a047', '#fb8c00', '#8e24aa', '#00acc1
 
 // ============================================================ PUPPY DRAWING
 // Local units: body center at origin, ground at y = 13, faces +x.
-const POSES = ['stand', 'walk1', 'walk2', 'sit', 'happy', 'sleep', 'eat', 'beg', 'lie'];
-const P_STAND = 0, P_WALK1 = 1, P_WALK2 = 2, P_SIT = 3, P_HAPPY = 4, P_SLEEP = 5, P_EAT = 6, P_BEG = 7, P_LIE = 8;
+const POSES = ['stand', 'walk1', 'walk2', 'sit', 'happy', 'sleep', 'eat', 'beg', 'lie', 'tiptoe'];
+const P_STAND = 0, P_WALK1 = 1, P_WALK2 = 2, P_SIT = 3, P_HAPPY = 4, P_SLEEP = 5, P_EAT = 6, P_BEG = 7, P_LIE = 8, P_TIPTOE = 9;
 const GEOM = {
   stand: { body: [-3, 0, 13, 9], head: [10, -7, 9.5], legs: [[-10, 5, 8], [-4, 5, 8], [3, 5, 8], [8, 5, 8]], tail: [-14, -3, 0.9], eyes: 'open', collar: [4.5, -1] },
   walk1: { body: [-3, -1, 13, 9], head: [10, -8, 9.5], legs: [[-11, 4, 9], [-3, 4, 7], [2, 4, 7], [9, 4, 9]], tail: [-14, -4, 0.7], eyes: 'open', collar: [4.5, -2] },
@@ -255,7 +255,9 @@ const GEOM = {
   // begging: sitting up tall, front paws tucked up in front of the chest
   beg: { body: [-2, 3, 8.5, 11], haunch: [-7, 8, 5.5], head: [6, -12, 9.5], legs: [[2, -2, 6], [7, -2, 6]], tail: [-9, 11, 0.4], eyes: 'open', tongue: true, collar: [2.5, -3] },
   // lying down, awake
-  lie: { body: [-2, 5, 14, 7], head: [11, 1, 9], legs: [[-10, 9, 4], [6, 9, 4]], tail: [-15, 7, -0.2], eyes: 'open', collar: [5, 2] }
+  lie: { body: [-2, 5, 14, 7], head: [11, 1, 9], legs: [[-10, 9, 4], [6, 9, 4]], tail: [-15, 7, -0.2], eyes: 'open', collar: [5, 2] },
+  // a ballerina: standing right up on its hind legs, front paws held in front
+  tiptoe: { body: [-1, -2, 7.5, 11.5], head: [3, -17, 9.5], legs: [[-3.5, 7, 8.5], [1.5, 7, 8.5], [0, -5, 6], [4, -5, 6]], tail: [-7, 6, 0.9], eyes: 'happy', blush: true, collar: [2, -9] }
 };
 function ell(g, x, y, rx, ry, rot, color) { g.fillStyle = color; g.beginPath(); g.ellipse(x, y, rx, ry, rot, 0, TAU); g.fill(); }
 function circ(g, x, y, r, color) { g.fillStyle = color; g.beginPath(); g.arc(x, y, r, 0, TAU); g.fill(); }
@@ -297,7 +299,7 @@ function drawPuppy(g, L, poseName, o) {
   let [tx, ty, ta] = Gm.tail;
   const standing = legs.length === 4;
   // body types
-  if (L.long) {   // dachshund: gloriously long low body, short legs, head way out front
+  if (L.long && poseName !== 'tiptoe') {   // dachshund: gloriously long low body, short legs, head way out front
     brx *= standing ? 1.9 : 1.5; bx -= 2; hx += standing ? 8 : 6;
     if (standing) { by += 1.5; hy += 1.5; ty += 1.5; legs = legs.map(l => [l[0] + (l[0] < 0 ? -6 : 6), l[1] + 3, l[2] - 3]); tx -= 12; } else tx -= 6;
   }
@@ -493,7 +495,7 @@ function eachNear(x, y, r, fn) {
   }
 }
 // how easily a puppy gets nudged aside: sleepers don't budge, sitting ones barely do
-function mobility(p) { return p.state === 'sleep' ? 0 : (p.state === 'idle' || p.state === 'eat' || p.state === 'happy' || p.state === 'potty' || p.state === 'trick' || p.state === 'dance') ? 0.25 : 1; }
+function mobility(p) { return p.state === 'sleep' || p.state === 'play' ? 0 : (p.state === 'idle' || p.state === 'eat' || p.state === 'happy' || p.state === 'potty' || p.state === 'trick' || p.state === 'dance') ? 0.25 : 1; }
 // Puppies like a little breathing room: every neighbour closer than COMFORT adds "crowd pressure" (p.px, p.py)
 // pointing away from it. Idle puppies that feel too much of it get up and walk off, walking puppies steer by it.
 // That is how a called-in pile loosens up again, from the outside in.
@@ -506,6 +508,13 @@ function separate() {
     const g = 420 * (1 - d / MESS_R);   // stronger than a crowded neighbour: yuck
     p.px += (p.x - m.x) / d * g; p.py += (p.y - m.y) / d * g;
   });
+  if (stage) {   // nobody wants to stand on the stage but the band
+    const box = stageBox(stage);
+    eachNear(stage.x, (box.t + box.b) / 2, 230, p => {
+      if (p.state === 'play' || p.state === 'toStage' || !inBox(box, p.x, p.y)) return;
+      const [ex, ey] = stageExit(box, p); p.px += ex * 500; p.py += ey * 500;
+    });
+  }
   for (let i = 0; i < N; i++) {
     const p = puppies[i];
     const mp = mobility(p);
@@ -592,12 +601,13 @@ const parts = [];              // world-space particles
 const confetti = [];           // screen-space particles
 const callPoint = { type: 'point', x: 0, y: 0 };
 let calling = false;           // true while the Call tool is held: crowd pressure is ignored so the pile can form
-// dance party: up to four instruments on the grass, each adding its part to the song;
-// puppies nearby come and bounce to the beat
-const BAND = [{ part: 'drums', ch: '🥁' }, { part: 'bass', ch: '🎸' }, { part: 'lead', ch: '🎺' }, { part: 'chords', ch: '🎹' }];
-const band = [];               // { part, ch, x, y, noteT, recruitT, gone }, in the order they were put down
-const party = { t: 0, beat: 0 };
-const DANCE_R = 330, DANCE_TIME = 40;
+// dance party: a stage on the grass for one kind of music (see GENRES). Tapping the stage calls a puppy up to play
+// the next instrument, and every player adds a part to the song. The more players, the bigger the crowd dancing in front.
+let stage = null;              // { genre, x, y, seats, beat, playing, gone, showT, recruitT }
+let genre = 'electronic';      // the stage the Dance Party menu builds
+const STAGE_W = 320, STAGE_H = 110, CURTAIN_H = 70, SLOT_X = [-117, -39, 39, 117];
+const SHOW_TIME = 120;         // the show ends this long after the last player joined
+const CROWD_SHARE = 0.05;      // each player on stage draws this share of all the puppies to come and dance
 // potty breaks: rare, and they fade after a while
 const messes = [];             // { kind: 'poo' | 'pee', x, y, life }
 const MESS_LIFE = 45, MESS_MAX = 25, MESS_RATE = 0.00016;   // per idle puppy per second: a handful a minute across 2,000 puppies
@@ -626,11 +636,12 @@ function pickWander(p, awayX, awayY) {
     const d = awayX !== undefined ? rnd(60, 180) : rnd(30, 140);
     p.tx = clamp(p.x + Math.cos(a) * d, MARGIN, WORLD.w - MARGIN);
     p.ty = clamp(p.y + Math.sin(a) * d, MARGIN, WORLD.h - MARGIN);
-    if (!messes.some(m => Math.hypot(m.x - p.tx, m.y - p.ty) < MESS_R + 12)) break;   // not next to a potty spot, thanks
+    if (!messes.some(m => Math.hypot(m.x - p.tx, m.y - p.ty) < MESS_R + 12) && !onStage(p.tx, p.ty)) break;   // not next to a potty spot (or on the stage), thanks
   }
   p.state = 'wander'; p.t = 6;
 }
 function updatePuppy(p, dt) {
+  p.tilt = 0;
   switch (p.state) {
     case 'idle':
       p.t -= dt; damp(p, 8, dt);
@@ -656,13 +667,13 @@ function updatePuppy(p, dt) {
       break;
     case 'seek': {
       const o = p.obj;
-      if (!o || o.gone || (o.type === 'treat' && o.eaten) || (o.type === 'ball' && (ball.state === 'carried' || !ball.active)) || (o.type === 'dance' && o.inst.gone)) { toIdle(p, 0.5); break; }
+      if (!o || o.gone || (o.type === 'treat' && o.eaten) || (o.type === 'ball' && (ball.state === 'carried' || !ball.active)) || (o.type === 'dance' && (o.inst.gone || !o.inst.playing))) { toIdle(p, 0.5); break; }
       const dx = o.x - p.x, dy = o.y - p.y, d = Math.hypot(dx, dy);
-      const arrive = o.type === 'point' ? 26 : o.type === 'treat' ? 13 : o.type === 'dance' ? 8 : 15;
+      const arrive = o.type === 'point' ? 26 : o.type === 'treat' ? 13 : o.type === 'dance' ? 20 : 15;
       if (d < arrive) {
         if (o.type === 'treat') { o.eaten = true; p.state = 'eat'; p.t = 1.7; p.vx = p.vy = 0; if (dx < 0) p.facing = -1; else p.facing = 1; sfx.crunch(); }
         else if (o.type === 'ball') { if (ball.z < 25) pickUpBall(p); else damp(p, 6, dt); }
-        else if (o.type === 'dance') { p.state = 'dance'; p.inst = o.inst; p.dance = Math.random(); p.vx = p.vy = 0; p.obj = null; p.facing = p.x < p.inst.x ? 1 : -1; }
+        else if (o.type === 'dance') { p.state = 'dance'; p.inst = o.inst; p.ax = o.x; p.ay = o.y; p.wph = o.ph; p.vx = p.vy = 0; p.obj = null; }
         else toIdle(p, rnd(0.4, 1));
         break;
       }
@@ -688,10 +699,38 @@ function updatePuppy(p, dt) {
         pickWander(p);
       }
       break;
-    case 'dance':
-      if (p.inst.gone) { toIdle(p); break; }
-      p.dance += dt; damp(p, 6, dt);
-      p.facing = ((p.dance * 2) | 0) & 1 ? -1 : 1;   // turn around on every beat
+    case 'dance': {   // in the crowd in front of the stage, dancing that stage's dance on the music's beat
+      const s = p.inst;
+      if (s.gone || !s.playing) { toIdle(p); break; }
+      const B = s.beat, style = GENRES[s.genre].dance;
+      let tx = p.ax, ty = p.ay;
+      if (style === 'bounce') { p.facing = (B | 0) & 1 ? -1 : 1; p.tilt = Math.sin(B * Math.PI) * 0.12; }   // turn around on every beat
+      else if (style === 'waltz') {   // partners circle each other, once round every two bars
+        const th = p.wph + B * Math.PI / 3;
+        tx += Math.cos(th) * 16; ty += Math.sin(th) * 8; p.facing = Math.sin(th) > 0 ? -1 : 1;
+      } else if (style === 'rock') { p.facing = (B / 2 | 0) & 1 ? -1 : 1; p.tilt = Math.sin(B * TAU) * 0.2; }   // jump, and headbang
+      else if (style === 'ballet') {   // up on tiptoe, drifting round a little circle; every other bar, a pirouette
+        const th = B * Math.PI / 4 + p.wph;
+        tx += Math.cos(th) * 12; ty += Math.sin(th) * 5;
+        p.facing = (B / 4 | 0) & 1 ? ((B * 4 | 0) & 1 ? -1 : 1) : (Math.sin(th) > 0 ? -1 : 1);
+      } else { tx += Math.sin(B * Math.PI) * 9; p.facing = Math.cos(B * Math.PI) > 0 ? 1 : -1; p.tilt = Math.sin(B * Math.PI) * 0.15; }   // swing: sway, a step on every beat
+      const k = Math.min(1, dt * 8);
+      p.x += (tx - p.x) * k; p.y += (ty - p.y) * k; p.vx = p.vy = 0;
+      break;
+    }
+    case 'toStage': {   // called up to play: run to the instrument
+      const q = p.seat;
+      if (q.gone) { toIdle(p); break; }
+      const dx = q.x - p.x, dy = q.y - p.y, d = Math.hypot(dx, dy);
+      p.t -= dt;
+      if (d < 5 || p.t <= 0) startPlaying(p);
+      else steer(p, dx / d * 170, dy / d * 170, 8, dt);
+      break;
+    }
+    case 'play':
+      if (p.seat.gone) { toIdle(p); break; }
+      p.x = p.seat.x; p.y = p.seat.y; p.vx = p.vy = 0; p.facing = p.seat.dir;
+      p.tilt = Math.sin(stage.beat * Math.PI) * 0.08;   // nodding along
       break;
     case 'trick': {
       p.t -= dt; damp(p, 8, dt);
@@ -735,7 +774,17 @@ function updatePuppy(p, dt) {
 }
 // how high off the ground a puppy is drawn (world units): dancing bounces, jumping hops twice
 function hopOf(p) {
-  if (p.state === 'dance') return Math.abs(Math.sin(p.dance * TAU)) * 5;
+  if (p.state === 'dance') {
+    const B = p.inst.beat;
+    switch (GENRES[p.inst.genre].dance) {
+      case 'bounce': return Math.abs(Math.sin(B * Math.PI)) * 5;
+      case 'waltz': return Math.sin(Math.PI * (B % 3) / 3) * 3;   // down on ONE, up on two and three
+      case 'rock': return Math.abs(Math.sin(B * Math.PI)) * 16;
+      case 'ballet': return 3 + Math.sin(B * Math.PI / 2) * 2;
+      default: return (B | 0) & 1 ? Math.abs(Math.sin(B * Math.PI)) * 4 : 0;   // a little hop on two and four
+    }
+  }
+  if (p.state === 'play' && p.seat.part.hold === 'held') return Math.abs(Math.sin(stage.beat * Math.PI)) * 2;
   if (p.state === 'trick' && p.trick === 'jump') return Math.abs(Math.sin((p.tmax - p.t) / 0.8 * Math.PI)) * 18;
   if (p.state === 'form' && formation && formation.kind === 'wave') return Math.max(0, -Math.sin(p.fx / 180 - formation.t * 2.2)) * 12;   // hop on the crest
   return 0;
@@ -743,7 +792,15 @@ function hopOf(p) {
 function poseOf(p) {
   if (p.state === 'sleep') return P_SLEEP;
   if (p.state === 'eat') return P_EAT;
-  if (p.state === 'happy' || p.state === 'dance') return P_HAPPY;
+  if (p.state === 'dance') {
+    const style = GENRES[p.inst.genre].dance;
+    if (style === 'ballet') return P_TIPTOE;
+    if (style === 'rock') return hopOf(p) > 4 ? P_WALK1 : P_HAPPY;
+    if (style === 'bounce') return P_HAPPY;
+    return P_WALK1 + ((p.inst.beat | 0) & 1);   // waltz and swing: a step on every beat
+  }
+  if (p.state === 'play') return p.seat.part.hold === 'held' ? P_BEG : P_SIT;
+  if (p.state === 'happy') return P_HAPPY;
   if (p.state === 'potty') return P_SIT;
   if (p.state === 'trick') return p.trick === 'beg' ? P_BEG : p.trick === 'sit' ? P_SIT : p.trick === 'jump' ? (hopOf(p) > 3 ? P_WALK1 : P_STAND) : P_LIE;
   if (Math.hypot(p.vx, p.vy) > 8) return P_WALK1 + ((p.anim | 0) & 1);
@@ -755,7 +812,7 @@ function poseOf(p) {
 // ============================================================ ACTIONS
 function shoo(x, y, r, pvx, pvy, dt) {
   eachNear(x, y, r, (p, d) => {
-    if (p.state === 'carry' || p.state === 'eat') return;
+    if (p.state === 'carry' || p.state === 'eat' || p.state === 'play' || p.state === 'toStage') return;
     d = d || 0.01;
     const f = 1 - d / r;
     const dx = (p.x - x) / d, dy = (p.y - y) / d;
@@ -783,7 +840,7 @@ function puppyAt(x, y) {
 }
 function pet(p, first) {
   releaseFormation();
-  if (p.state === 'carry') { spawnHearts(p, 1); return; }
+  if (p.state === 'carry' || p.state === 'play' || p.state === 'toStage') { spawnHearts(p, 1); if (first) showCard(p, 8000); return; }
   if (!first && now - p.lastPet < 0.35) return;
   p.lastPet = now;
   p.state = 'happy'; p.t = 2.4; p.vx = p.vy = 0; p.obj = null;
@@ -796,58 +853,131 @@ function pet(p, first) {
 // commands from the puppy's card
 function doTrick(p, trick) {
   if (!p || p.state === 'carry') return;
+  if (p.state === 'play' || p.state === 'toStage') { showCard(p, 4000, p.name + ' is busy playing the ' + p.seat.part.name + '! 🎶'); return; }
   releaseFormation();
-  if (p.state === 'dance' || (p.state === 'seek' && p.obj && p.obj.type === 'dance')) p.obj = null;
   p.state = 'trick'; p.trick = trick; p.t = trick === 'roll' ? 2.2 : trick === 'lie' ? 4 : trick === 'jump' ? 1.6 : 3; p.tmax = p.t;
   p.vx = p.vy = 0; p.rot = 0; p.obj = null;
   sfx.pop(); showCard(p, 8000);
 }
-// dance party: each tap puts down the next instrument, tapping one takes it away again
-function placeInstrument(x, y) {
+// dance party
+function stageBox(s) { return { l: s.x - STAGE_W / 2 - 12, r: s.x + STAGE_W / 2 + 12, t: s.y - STAGE_H / 2 - CURTAIN_H, b: s.y + STAGE_H / 2 + 18 }; }
+const inBox = (b, x, y) => x > b.l && x < b.r && y > b.t && y < b.b;
+function onStage(x, y) { return !!stage && inBox(stageBox(stage), x, y); }
+function stageExit(box, p) {   // which way is the nearest edge
+  const d = [p.x - box.l, box.r - p.x, p.y - box.t, box.b - p.y], m = Math.min(...d);
+  return m === d[0] ? [-1, 0] : m === d[1] ? [1, 0] : m === d[2] ? [0, -1] : [0, 1];
+}
+const isDancer = (p, s) => (p.state === 'dance' && p.inst === s) || (p.state === 'seek' && p.obj && p.obj.type === 'dance' && p.obj.inst === s);
+function placeStage(x, y) {
   releaseFormation();
-  const hit = band.find(b => dist(x, y, b.x, b.y) < 40);
-  if (hit) { removeInstrument(hit); return; }
-  if (band.length >= BAND.length) removeInstrument(band[0]);   // a full band: the oldest one moves here
-  if (!band.length) { party.beat = 0; stats.dances = (stats.dances || 0) + 1; saveStats(); }
-  const next = BAND.find(k => !band.some(b => b.part === k.part));
-  const b = { part: next.part, ch: next.ch, x, y, noteT: 0, recruitT: 0, gone: false };
-  band.push(b); party.t = DANCE_TIME;
-  sfx.setPart(b.part, true);
+  const g = GENRES[genre];
+  // room for the backdrop above and the crowd below
+  x = clamp(x, STAGE_W / 2 + 60, WORLD.w - STAGE_W / 2 - 60); y = clamp(y, MARGIN + CURTAIN_H + STAGE_H / 2 + 10, WORLD.h - STAGE_H / 2 - 300);
+  stage = { genre, x, y, seats: [], beat: 0, playing: false, gone: false, showT: SHOW_TIME, recruitT: 0 };
+  stats.dances = (stats.dances || 0) + 1; saveStats();
+  sfx.setSong(genre); sfx.pop();
+  showToast(g.ch + ' ' + g.name + '<small>' + g.hello + '<br>Tap the stage to call up a player.</small>', 5000);
 }
-function removeInstrument(b) {
-  b.gone = true; band.splice(band.indexOf(b), 1);
-  sfx.setPart(b.part, false);
-  for (const p of puppies) if ((p.state === 'dance' && p.inst === b) || (p.state === 'seek' && p.obj && p.obj.type === 'dance' && p.obj.inst === b)) toIdle(p, rnd(0.2, 1.5));
+function packUpStage() {
+  if (!stage) return;
+  for (const q of stage.seats) { q.gone = true; if (q.dog) pickWander(q.dog, 0, 1); }
+  stage.gone = true; stage = null; sfx.stopMusic();
 }
-function stopBand() { while (band.length) removeInstrument(band[band.length - 1]); }
-const DANCE_MAX = 40;   // dancers per instrument, so the floor stays a ring around it rather than a pile on it
-function recruitDancers(b) {
-  let dancing = 0;
-  for (const p of puppies) if ((p.state === 'dance' && p.inst === b) || (p.state === 'seek' && p.obj && p.obj.type === 'dance' && p.obj.inst === b)) dancing++;
-  if (dancing >= DANCE_MAX) return;
+function tapStage(x, y) {
+  if (!stage) { placeStage(x, y); return; }
+  if (!onStage(x, y)) { showToast('Tap the stage to call up a player 🎶', 2500); return; }
+  const hit = stage.seats.find(q => dist(x, y, q.x, q.y - 6) < 26 || dist(x, y, q.ix, q.iy) < 24);
+  if (hit) { removeSeat(hit); return; }
+  const band = GENRES[stage.genre].parts;
+  if (stage.seats.length >= band.length) { showToast('The band is full!<small>Tap a player to send them home.</small>', 3000); return; }
+  const free = [0, 1, 2, 3].filter(i => !stage.seats.some(q => q.slot === i));
+  const slot = free.reduce((a, i) => Math.abs(stage.x + SLOT_X[i] - x) < Math.abs(stage.x + SLOT_X[a] - x) ? i : a);
+  addSeat(slot, band.findIndex((_, i) => !stage.seats.some(q => q.idx === i)));   // the next part, in the song's order
+}
+function addSeat(slot, idx) {
+  const part = GENRES[stage.genre].parts[idx], dir = slot < 2 ? 1 : -1, big = part.hold !== 'held';
+  const sx = stage.x + SLOT_X[slot], sy = stage.y + 8;
+  // players face the middle of the stage; a big instrument stands in front of its player, a small one is held up
+  const q = { slot, idx, part, dir, x: sx - dir * (big ? 10 : 4), y: sy, ix: sx + dir * (big ? 14 : 12), iy: sy + (big ? 2 : -6), dog: null, ready: false, gone: false, labelT: 0 };
+  // the nearest puppy that isn't busy runs up to play it (a dancer in the crowd is happy to)
+  let best = null, bd = Infinity;
+  const consider = p => {
+    if (p.state === 'play' || p.state === 'toStage' || p.state === 'carry' || p.state === 'eat' || p.state === 'form') return;
+    const d = dist(p.x, p.y, q.x, q.y); if (d < bd) { bd = d; best = p; }
+  };
+  eachNear(q.x, q.y, 500, p => { if (isFree(p) || p.state === 'dance' || p.state === 'sleep') consider(p); });
+  if (!best) for (const p of puppies) consider(p);
+  if (!best) return;
+  stage.seats.push(q); stage.showT = SHOW_TIME;
+  q.dog = best; best.state = 'toStage'; best.seat = q; best.obj = null; best.t = 12;
+  sfx.pop();
+}
+function startPlaying(p) {
+  const q = p.seat;
+  p.state = 'play'; p.x = q.x; p.y = q.y; p.vx = p.vy = 0; p.facing = q.dir; q.ready = true;
+  sfx.setPart(q.idx, true);
+  spawnHearts(p, 2);
+  showToast(p.name + ' plays the ' + q.part.name + ' ' + (q.part.ch === 'harp' ? '🎶' : q.part.ch) + '<small>' + q.part.fact + '</small>', 4000);
+}
+function removeSeat(q) {
+  q.gone = true; stage.seats.splice(stage.seats.indexOf(q), 1);
+  sfx.setPart(q.idx, false);
+  if (q.dog) pickWander(q.dog, 0, 1);
+}
+// the crowd: a share of all the puppies for every player on stage, in front of it, growing as the band does
+function recruitAudience(s, players) {
+  const want = Math.min(N - players, Math.round(N * CROWD_SHARE * players));
+  const crowd = []; for (const p of puppies) if (isDancer(p, s)) crowd.push(p);
+  if (crowd.length > want) {   // a player left: the ones at the back wander off
+    crowd.sort((a, b) => dist(b.x, b.y, s.x, s.y) - dist(a.x, a.y, s.x, s.y));
+    for (const p of crowd.slice(0, crowd.length - want)) pickWander(p, p.x - s.x, p.y - s.y);
+    return;
+  }
+  // the dance floor: wide and deep enough for everyone, just in front of the stage
+  const area = want * 1100, w = clamp(Math.sqrt(area * 2.5), STAGE_W + 120, WORLD.w - 100), depth = area / w, top = s.y + STAGE_H / 2 + 45;
   const cands = [];
-  eachNear(b.x, b.y, DANCE_R, (p, d) => { if (isFree(p)) cands.push([d, p]); });
-  cands.sort((a, c) => a[0] - c[0]);
-  for (const [, p] of cands.slice(0, DANCE_MAX - dancing)) {
-    // everyone gets their own spot on the ring around the instrument
-    const a = Math.atan2(p.y - b.y, p.x - b.x) + rnd(-0.6, 0.6), r = rnd(50, 200);
-    p.obj = { type: 'dance', inst: b, x: clamp(b.x + Math.cos(a) * r, MARGIN, WORLD.w - MARGIN), y: clamp(b.y + Math.sin(a) * r, MARGIN, WORLD.h - MARGIN) };
-    p.state = 'seek'; p.t = 10;
+  eachNear(s.x, top + depth / 2, 700 + depth, (p, d) => { if (isFree(p)) cands.push([d, p]); });
+  cands.sort((a, b) => a[0] - b[0]);
+  const take = cands.slice(0, Math.min(want - crowd.length, 40)).map(c => c[1]);   // a few at a time, so the crowd builds up
+  const pairs = GENRES[s.genre].dance === 'waltz';
+  for (let i = 0; i < take.length; i++) {
+    // waltzers come in pairs that share a spot and circle round it
+    const spot = pairs && i % 2 ? { ...take[i - 1].obj, ph: take[i - 1].obj.ph + Math.PI }
+      : { type: 'dance', inst: s, x: clamp(s.x + rnd(-w / 2, w / 2), MARGIN, WORLD.w - MARGIN), y: clamp(top + rnd(0, depth), MARGIN, WORLD.h - MARGIN), ph: rnd(0, TAU) };
+    take[i].obj = spot; take[i].state = 'seek'; take[i].t = 15;
   }
 }
-function updateBand(dt) {
-  if (!band.length) return;
-  party.t -= dt; party.beat += dt * 2;   // 120 bpm
-  for (const b of band) {
-    b.recruitT -= dt; if (b.recruitT <= 0) { recruitDancers(b); b.recruitT = 1.5; }
-    b.noteT -= dt;
-    if (b.noteT <= 0) {
-      b.noteT = 0.28 + band.length * 0.1;   // a bigger band shouldn't mean a blizzard of notes
-      parts.push({ kind: 'note', x: b.x + rnd(-10, 10), y: b.y - 12, vx: rnd(-12, 12), vy: rnd(-42, -28), life: 1.8, max: 1.8,
-        c: ['#ff6fa3', '#4fc3f7', '#ffd54f', '#ba68c8', '#81c784'][(Math.random() * 5) | 0], ch: Math.random() < 0.5 ? '♪' : '♫', ph: Math.random() * TAU });
-    }
+const LABEL_COLS = ['#ff6fa3', '#4fc3f7', '#ffd54f', '#81c784'];
+function updateStage(dt) {
+  if (!stage) return;
+  const s = stage, g = GENRES[s.genre], b = sfx.beat();
+  s.beat = b !== null ? b : s.beat + dt * g.bpm / 60;   // follow the music's own clock, so the dancing stays on the beat
+  const players = s.seats.filter(q => q.ready);
+  s.playing = players.length > 0;
+  // anyone still on the stage gets off it (even sleepers wake up)
+  const box = stageBox(s);
+  eachNear(s.x, (box.t + box.b) / 2, 230, p => {
+    if (p.state === 'play' || p.state === 'toStage' || !inBox(box, p.x, p.y)) return;
+    const [ex, ey] = stageExit(box, p);
+    p.x += ex * 420 * dt; p.y += ey * 420 * dt;
+    if (p.state === 'sleep') toIdle(p, 0);
+  });
+  // what each instrument just played floats up out of it: note names, drum words, or the chord and its number
+  for (const h of sfx.heard()) {
+    const q = players.find(q => q.idx === h.part); if (!q) continue;
+    if (!h.chord && now - q.labelT < 0.2) continue;   // fast parts would be a blizzard
+    q.labelT = now;
+    parts.push({ kind: 'label', text: h.text, chord: !!h.chord, x: q.ix + rnd(-6, 6), y: q.iy - 18, vx: rnd(-8, 8), vy: h.chord ? -22 : rnd(-40, -30),
+      life: h.chord ? 2.6 : 1.6, max: h.chord ? 2.6 : 1.6, c: h.chord ? '#fff' : LABEL_COLS[q.slot], ph: Math.random() * TAU });
   }
-  if (party.t <= 0) stopBand();
+  if (!s.playing) return;
+  s.showT -= dt;
+  if (s.showT <= 0) {
+    showToast('Bravo! 👏 What a show!', 3500); sfx.chime();
+    for (const q of players) spawnHearts(q.dog, 3);
+    packUpStage(); return;
+  }
+  s.recruitT -= dt; if (s.recruitT <= 0) { recruitAudience(s, players.length); s.recruitT = 0.5; }
 }
 function updateMesses(dt) {
   for (let i = messes.length - 1; i >= 0; i--) { messes[i].life -= dt; if (messes[i].life <= 0) messes.splice(i, 1); }
@@ -1030,6 +1160,7 @@ const DYN = {
   }
 };
 function startFormation(kind) {
+  packUpStage();
   let pts, labels = [];
   const dyn = DYN[kind];
   if (dyn) {
@@ -1076,59 +1207,333 @@ function endFormation() {
   $('btn-surprise').classList.remove('on');
 }
 
+// ============================================================ MUSIC
+// The dance party stages, one per kind of music. Every song is written in scale degrees over a chord progression,
+// so the same song can be played in major (happy) or minor (sad) and every note stays in the key.
+//   prog:  the chord for each bar, as a scale degree (1 = I, 4 = IV, 5 = V, 6 = vi ...)
+//   score: tokens "what/length", length in 16th-note steps ("/4" is one beat). "what" is
+//            1-7     a scale degree in the part's octave (' goes up an octave, , goes down)
+//            c0-c7   steps up the scale from this bar's chord root: c0+c2+c4 is the chord, c1 walks up from the root
+//            k s h x r p   drums: kick, snare, hi-hat, crash, ride, hi-hat pedal
+//            -       a rest;  "+" plays several at once
+//   show:  what floats up from the instrument: note names, the chord ("Am vi"), or drum words
+//   vol:   the part's level in the mix (set by ear and by measuring each part alone)
+// Parts come in one at a time in the order listed: the beat first, the tune last.
+const rep = (s, n) => Array(n).fill(s).join(' ');
+const GENRES = {
+  electronic: {
+    name: 'Electronic', ch: '🎧', key: 'C', bpm: 120, beats: 4, dance: 'bounce',
+    hello: 'Made with computers and synthesizers. Bounce to the beat!',
+    prog: [6, 6, 1, 1, 5, 5, 4, 4],
+    theme: { curtain: '#311b92', fold: '#1f1066', trim: '#00e5ff', floor: '#263238', plank: '#1c262b', edge: '#0d1418', text: '#e0f7fa', lights: ['#ff4081', '#00e5ff', '#76ff03', '#ffea00'] },
+    parts: [
+      { name: 'drum machine', ch: '🥁', vol: 1.5, voice: 'kit808', show: 'drums', fact: 'A computer that plays the beat.', score: rep('k/2 h/2 k+s/2 h/2 k/2 h/2 k+s/2 h/2', 8) },
+      { name: 'bass synth', ch: '🎛️', size: 28, vol: 3.5, voice: 'synthBass', oct: 2, show: 'notes', fact: 'Turn its knobs and it buzzes low notes.', score: rep('c0/2 c0/2 c4/2 c0/2 c2/2 c0/2 c4,/2 c0/2', 8) },
+      { name: 'DJ decks', ch: '🎧', hold: 'held', vol: 3.5, voice: 'synthLead', oct: 4, show: 'notes', fact: 'The DJ plays the tune and keeps the party going.', score: rep("6/2 1'/2 2'/2 1'/2 6/2 5/2 6/2 -/2", 8) },
+      { name: 'synth pad', ch: '🎹', vol: 1.5, voice: 'synthPad', oct: 3, show: 'chord', fact: 'Soft chords that float along under the tune.', score: rep('c0+c2+c4/16', 8) }
+    ]
+  },
+  waltz: {
+    name: 'Waltz', ch: '💃', key: 'G', bpm: 156, beats: 3, dance: 'waltz',
+    hello: 'A waltz counts in threes: ONE two three, ONE two three. Partners spin round and round!',
+    prog: [1, 6, 4, 5, 1, 6, 5, 1],
+    theme: { curtain: '#fff3e0', fold: '#f0dcb8', trim: '#d4af37', floor: '#c98f55', plank: '#b07a45', edge: '#7a4f2a', text: '#8d6e63', lights: ['#ffe082', '#fff8e1'] },
+    parts: [
+      { name: 'piano', ch: '🎹', vol: 0.6, voice: 'piano', oct: 3, show: 'chord', fact: 'Oom-pah-pah: a low note on ONE, chords on two and three.', score: rep('c0,/4 c0+c2+c4/4 c0+c2+c4/4', 8) },
+      { name: 'accordion', ch: '🪗', hold: 'held', size: 22, voice: 'accordion', oct: 4, show: 'notes', fact: 'Squeeze the bellows and air sings through its reeds.', score: rep('c4/8 c2/4', 8) },
+      { name: 'violin', ch: '🎻', hold: 'held', vol: 2, voice: 'violin', oct: 4, show: 'notes', fact: 'Sings the tune when the bow slides across its strings.', score: "1/4 3/4 5/4 6/8 5/4 6/4 4/4 1/4 2/8 7,/4 1/4 3/4 5/4 1'/8 6/4 5/4 7/4 2'/4 1'/8 -/4" },
+      { name: 'bells', ch: '🔔', hold: 'held', size: 18, voice: 'bells', oct: 5, show: 'notes', fact: 'Little metal bars that ring and sparkle.', score: "5/8 3/4 6/8 3/4 6/8 4/4 7/8 5/4 5/8 3/4 6/8 1'/4 7/8 2'/4 1'/12" }
+    ]
+  },
+  rock: {
+    name: 'Rock and roll', ch: '🎸', key: 'A', bpm: 168, beats: 4, dance: 'rock',
+    hello: 'Loud and fast! Rock and roll follows the 12-bar blues: I, IV and V. Jump!',
+    prog: [1, 1, 1, 1, 4, 4, 1, 1, 5, 4, 1, 5],
+    theme: { curtain: '#212121', fold: '#0a0a0a', trim: '#e53935', floor: '#424242', plank: '#353535', edge: '#1b1b1b', text: '#ffeb3b', lights: ['#e53935', '#ffeb3b', '#ffffff'] },
+    parts: [
+      { name: 'drum kit', ch: '🥁', vol: 0.6, voice: 'rockKit', show: 'drums', fact: 'BOOM on one and three, CRACK on two and four!',
+        score: 'k+h+x/2 h/2 s+h/2 h/2 k+h/2 h/2 s+h/2 h/2 ' + rep('k+h/2 h/2 s+h/2 h/2 k+h/2 h/2 s+h/2 h/2', 10) + ' k+h/2 h/2 s+h/2 h/2 s/1 s/1 s/1 s/1 s/1 s/1 s/2' },
+      { name: 'electric guitar', ch: '🎸', hold: 'held', size: 26, vol: 0.13, voice: 'guitar', fx: 'drive', oct: 2, show: 'notes', fact: 'Plugged into an amplifier to make it LOUD.', score: rep('c0+c4/2 c0+c4/2 c0+c5/2 c0+c5/2', 24) },
+      { name: 'piano', ch: '🎹', vol: 0.6, voice: 'piano', oct: 4, show: 'chord', fact: 'Rock and roll piano bangs out chords between the beats.', score: rep('-/2 c0+c2+c4/2', 48) },
+      { name: 'singer', ch: '🎤', hold: 'held', size: 16, vol: 0.5, voice: 'howl', oct: 4, show: 'notes', fact: 'The singer sings the words. This one only knows "awoo"!',
+        score: "5/4 5/4 3/4 1/4 3/6 1/2 -/8 5/4 5/4 3/4 1/4 7/4 6/4 5/8 6/4 6/4 4/4 1/4 4/6 1/2 -/8 5/4 5/4 3/4 1/4 3/6 1/2 -/8 2/4 5/4 7/4 2'/4 1'/4 6/4 4/8 5/4 3/4 1/8 2/8 -/8" }
+    ]
+  },
+  classical: {
+    name: 'Classical', ch: '🩰', key: 'D', bpm: 92, beats: 4, dance: 'ballet',
+    hello: 'An orchestra plays music written long, long ago. The puppies dance ballet!',
+    prog: [1, 4, 5, 1, 6, 4, 5, 1],
+    theme: { curtain: '#b71c1c', fold: '#7f0000', trim: '#ffd54f', floor: '#8d5a2b', plank: '#7a4b22', edge: '#5d3a1a', text: '#ffe082', lights: ['#fff8e1'] },
+    parts: [
+      { name: 'timpani', ch: '🥁', vol: 0.5, voice: 'timpani', oct: 2, show: 'notes', fact: 'Big copper kettle drums. Each one is tuned to a note.', score: rep('c0/8 c0/8', 6) + ' ' + rep('c0/2', 8) + ' c0/8 -/8' },
+      { name: 'cello', ch: '🎻', size: 40, voice: 'cello', oct: 2, show: 'notes', fact: 'A big violin that you play sitting down. It sings low.', score: rep('c0/8 c2/8', 8) },
+      { name: 'harp', ch: 'harp', vol: 0.7, voice: 'harp', oct: 3, show: 'chord', fact: 'Forty-seven strings, plucked with the fingers.', score: rep("c0/2 c2/2 c4/2 c0'/2 c2'/2 c0'/2 c4/2 c2/2", 7) + " c0/2 c2/2 c4/2 c0'/2 c2'/2 -/6" },
+      { name: 'violin', ch: '🎻', hold: 'held', vol: 2.2, voice: 'violin', oct: 4, show: 'notes', fact: 'The smallest string instrument plays the high tune.', score: "3/8 5/4 1'/4 1'/4 7/4 6/8 5/4 7/4 2'/8 1'/12 -/4 6/8 1'/4 3'/4 2'/4 1'/4 6/8 5/4 6/4 7/4 2'/4 1'/16" }
+    ]
+  },
+  jazz: {
+    name: 'Jazz', ch: '🎷', key: 'F', bpm: 138, beats: 4, swing: true, sevenths: true, dance: 'swing',
+    hello: 'Jazz swings: the notes go long-short, long-short. Snap on two and four!',
+    prog: [2, 5, 1, 1, 2, 5, 1, 6],
+    theme: { curtain: '#1a237e', fold: '#0d1240', trim: '#ffb300', floor: '#5d4037', plank: '#4e342e', edge: '#3e2723', text: '#ffe082', lights: ['#ffb300', '#ff7043'] },
+    parts: [
+      { name: 'drums', ch: '🥁', vol: 1.6, voice: 'jazzKit', show: 'drums', fact: 'The ride cymbal goes ding, ding-a-ding, ding-a-ding.', score: rep('r+k/4 r+p/2 r/2 r+k/4 r+p/2 r/2', 7) + ' r+k/4 r+p/2 r/2 r+s/2 s/2 r+p+s/2 s/2' },
+      { name: 'double bass', ch: '🎻', size: 48, vol: 0.5, voice: 'dblBass', oct: 2, show: 'notes', fact: 'Taller than a grown-up! It walks: one note on every beat.', score: rep('c0/4 c1/4 c2/4 c4/4 c0/4 c4,/4 c5,/4 c6,/4', 4) },
+      { name: 'piano', ch: '🎹', vol: 0.6, voice: 'piano', oct: 3, show: 'chord', fact: 'Jazz piano plays chords in surprising places.', score: rep('c0+c2+c4+c6/6 c0+c2+c4+c6/2 -/8', 8) },
+      { name: 'saxophone', ch: '🎷', hold: 'held', size: 22, vol: 1.6, voice: 'sax', oct: 4, show: 'notes', fact: 'Made of brass, but it has a reed, so it is a woodwind!',
+        score: "2/4 4/2 6/2 5/4 4/4 5/4 7,/2 2/2 4/4 3/4 1/8 3/4 5/4 7/6 5/2 3/8 4/4 6/2 1'/2 7/4 6/4 5/6 4/2 2/8 3/2 5/2 7/4 1'/8 6/8 -/8" }
+    ]
+  }
+};
+const LETTERS = 'CDEFGAB', NATURAL = [0, 2, 4, 5, 7, 9, 11];
+const SCALES = { major: [0, 2, 4, 5, 7, 9, 11], minor: [0, 2, 3, 5, 7, 8, 10] };
+const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII'];
+// scale step d (0 = the tonic, 7 = the tonic an octave up, negative goes down) in a key and octave, as a MIDI note
+function degMidi(key, mode, oct, d) {
+  const o = Math.floor(d / 7), i = d - o * 7;
+  return 12 * (oct + 1 + o) + NATURAL[LETTERS.indexOf(key)] + SCALES[mode][i];
+}
+// the note's name, spelled from the key so C minor gets E♭ rather than D♯
+function noteName(key, d, midi) {
+  const li = ((LETTERS.indexOf(key) + d) % 7 + 7) % 7;
+  let acc = ((midi % 12) - NATURAL[li] + 12) % 12; if (acc > 6) acc -= 12;
+  return LETTERS[li] + (acc === 1 ? '♯' : acc === -1 ? '♭' : '');
+}
+// "Am vi", "G7 V7", "Bbmaj7 IVmaj7": the chord built on scale step d, with its Roman numeral
+function chordLabel(key, mode, d, sevenths) {
+  const m = k => degMidi(key, mode, 4, d + k);
+  const third = m(2) - m(0), fifth = m(4) - m(0), seventh = m(6) - m(0);
+  const minor = third === 3, dim = minor && fifth === 6;
+  let name = noteName(key, d, m(0)), rom = ROMAN[((d % 7) + 7) % 7];
+  if (minor) rom = rom.toLowerCase();
+  if (sevenths) {
+    const q = dim ? 'ø7' : minor ? 'm7' : seventh === 11 ? 'maj7' : '7';
+    name += q; rom += q === 'm7' ? '7' : q;
+  } else if (dim) { name += '°'; rom += '°'; }
+  else if (minor) name += 'm';
+  return name + ' ' + rom;
+}
+// score text into events: { at, len, items: [{ drum } | { deg } | { ch }] }
+function parseScore(text) {
+  const evs = []; let at = 0;
+  for (const tok of text.trim().split(/\s+/)) {
+    const [what, len] = tok.split('/');
+    if (what !== '-') evs.push({ at, len: +len, items: what.split('+').map(w => {
+      const shift = 7 * ((w.match(/'/g) || []).length - (w.match(/,/g) || []).length), core = w.replace(/[',]/g, '');
+      if (/^[kshxrp]$/.test(core)) return { drum: core };
+      if (core[0] === 'c') return { ch: +core.slice(1) + shift };
+      return { deg: +core - 1 + shift };
+    }) });
+    at += +len;
+  }
+  return { evs, steps: at };
+}
+
 // ============================================================ SOUND
 const sfx = (() => {
-  let ac = null, muted = store.get('muted', '0') === '1';
+  let ac = null, out = null, noise = null, muted = store.get('muted', '0') === '1';
+  let mode = store.get('mode', 'major') === 'minor' ? 'minor' : 'major';
   function actx() {
     if (!ac) { try { ac = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { } }
     if (ac && ac.state === 'suspended') ac.resume();
     return ac;
   }
-  let seq = null, seqStep = 0, seqNext = 0, padBus = null;
-  const BASS = [110, 0, 110, 0, 146.8, 0, 110, 0, 130.8, 0, 110, 0, 98, 0, 110, 0];
-  const LEAD = [440, 0, 523, 0, 587, 0, 523, 0, 440, 0, 392, 0, 440, 0, 0, 0];
-  // chord pad over 8 bars, Am | C | G | F: [start step, length in steps, midi notes]
-  const HARMONY = [
-    [0, 32, [57, 60, 64]],
-    [32, 32, [55, 60, 64]],
-    [64, 32, [55, 59, 62]],
-    [96, 32, [53, 57]], [96, 14, [62]], [112, 16, [60]],
-  ];
-  const SONG_STEPS = 128;
+  // the music goes through a gentle compressor so a full band never clips
+  function master() {
+    if (!out) { out = ac.createDynamicsCompressor(); out.threshold.value = -16; out.ratio.value = 4; out.connect(ac.destination); }
+    return out;
+  }
+  function noiseBuf() {
+    if (!noise) { noise = ac.createBuffer(1, ac.sampleRate, ac.sampleRate); const d = noise.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; }
+    return noise;
+  }
   const mtof = n => 440 * Math.pow(2, (n - 69) / 12);
-  const layers = { drums: false, bass: false, lead: false, chords: false };   // one per instrument on the grass
-  const joining = new Set();   // parts waiting for the next bar so each one comes in cleanly
-  function musicStep(s, d) {
-    const b = s % 16;
-    if (b === 0) for (const part of joining) { layers[part] = true; if (part === 'chords') { newPadBus(); joinChords(s, d); } }
-    if (b === 0) joining.clear();
-    if (layers.drums) {
-      if (b % 4 === 0) tone(160, 45, 0.16, 'sine', 0.35, d);            // kick
-      if (b % 8 === 4) tone(900, 200, 0.12, 'triangle', 0.12, d);       // snare-ish
-      if (b % 4 === 2) tone(7000, 3000, 0.04, 'square', 0.025, d);      // hat
+
+  // ---- building blocks: everything takes an absolute start time t and the node to play into
+  function osc(type, f, t, end, dest) { const o = ac.createOscillator(); o.type = type; o.frequency.setValueAtTime(f, t); o.connect(dest); o.start(t); o.stop(end); return o; }
+  function gainAt(dest, t) { const g = ac.createGain(); g.gain.setValueAtTime(0.0001, t); g.connect(dest); return g; }
+  // a struck sound: straight up to vol, then dies away over decay seconds
+  function perc(dest, t, vol, decay, atk) { const g = gainAt(dest, t); g.gain.exponentialRampToValueAtTime(vol, t + (atk || 0.004)); g.gain.exponentialRampToValueAtTime(0.0001, t + decay); return g; }
+  // a held sound: fade in over atk, hold until t + hold, fade out over rel; returns when it's silent
+  function held(g, t, vol, atk, hold, rel) {
+    const h = Math.max(atk, hold);
+    g.gain.exponentialRampToValueAtTime(vol, t + atk); g.gain.setValueAtTime(vol, t + h); g.gain.exponentialRampToValueAtTime(0.0001, t + h + rel);
+    return t + h + rel + 0.02;
+  }
+  function sweep(dest, type, f0, f1, t, dur, vol) { const o = osc(type, f0, t, t + dur + 0.02, perc(dest, t, vol, dur, 0.012)); o.frequency.exponentialRampToValueAtTime(f1, t + dur); }
+  function hiss(dest, t, dur, type, freq, q) {
+    const s = ac.createBufferSource(), f = ac.createBiquadFilter();
+    s.buffer = noiseBuf(); s.loop = true; f.type = type; f.frequency.value = freq; if (q) f.Q.value = q;
+    s.connect(f).connect(dest); s.start(t, Math.random() * 0.5); s.stop(t + dur + 0.02);
+  }
+  function filter(dest, type, freq, q) { const f = ac.createBiquadFilter(); f.type = type; f.frequency.value = freq; if (q) f.Q.value = q; f.connect(dest); return f; }
+  function vibrato(o, f, t, end, rate, depth, delay) {
+    const l = ac.createOscillator(), g = ac.createGain();
+    l.frequency.value = rate; g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(f * depth, t + delay);
+    l.connect(g).connect(o.frequency); l.start(t); l.stop(end);
+  }
+  // plucked strings (harp, double bass, guitar): the Karplus-Strong trick, a burst of noise fed round a delay
+  // the length of one vibration. Rendered once per note and kept.
+  const plucks = new Map();
+  function pluckBuf(f, secs, damp) {
+    const key = f.toFixed(2) + '|' + secs + '|' + damp;
+    let b = plucks.get(key); if (b) return b;
+    const sr = ac.sampleRate, n = Math.max(2, Math.round(sr / f)), len = Math.floor(sr * secs);
+    b = ac.createBuffer(1, len, sr); const d = b.getChannelData(0);
+    for (let i = 0; i < n && i < len; i++) d[i] = Math.random() * 2 - 1;
+    for (let i = n; i < len; i++) d[i] = damp * 0.5 * (d[i - n] + d[i - n + 1]);
+    plucks.set(key, b); return b;
+  }
+  function pluck(dest, f, t, vol, secs, damp, stopAt) {
+    const s = ac.createBufferSource(), g = gainAt(dest, t);
+    s.buffer = pluckBuf(f, secs, damp);
+    g.gain.exponentialRampToValueAtTime(vol, t + 0.003);
+    if (stopAt) { g.gain.setValueAtTime(vol, stopAt); g.gain.exponentialRampToValueAtTime(0.0001, stopAt + 0.06); }
+    s.connect(g); s.start(t); s.stop(stopAt ? Math.min(stopAt + 0.08, t + secs) : t + secs);
+  }
+  let pianoWave = null;
+  function bowed(dest, f, t, dur, vol, cutoff, atk, vib) {
+    const g = gainAt(filter(dest, 'lowpass', cutoff, 1.5), t), end = held(g, t, vol, atk, dur - 0.1, 0.14);
+    vibrato(osc('sawtooth', f, t, end, g), f, t, end, 5.5, vib, 0.25);
+  }
+  let driveCurve = null;
+  function drive() {
+    if (!driveCurve) { driveCurve = new Float32Array(1024); for (let i = 0; i < 1024; i++) { const x = i / 511.5 - 1; driveCurve[i] = Math.tanh(x * 5); } }
+    return driveCurve;
+  }
+
+  // ---- the instruments. n is a MIDI note (or a drum letter), dur the note's length in seconds
+  const VOICES = {
+    // electronic: the original boombox sounds
+    kit808(d, n, t) {
+      if (n === 'k') sweep(d, 'sine', 160, 45, t, 0.16, 0.35);
+      else if (n === 's') sweep(d, 'triangle', 900, 200, t, 0.12, 0.12);
+      else if (n === 'h') sweep(d, 'square', 7000, 3000, t, 0.04, 0.025);
+    },
+    synthBass(d, n, t) { const f = mtof(n); sweep(d, 'sawtooth', f, f * 0.98, t, 0.2, 0.06); },
+    synthLead(d, n, t) { const f = mtof(n); sweep(d, 'triangle', f, f, t, 0.18, 0.06); },
+    synthPad(d, n, t, dur) { const g = gainAt(d, t); osc('triangle', mtof(n), t, held(g, t, 0.03, 0.08, dur - 0.12, 0.12), g); },
+    // a real drum kit: noise for the snare and cymbals
+    rockKit(d, n, t) {
+      if (n === 'k') { sweep(d, 'sine', 140, 48, t, 0.3, 0.55); sweep(d, 'triangle', 1400, 200, t, 0.02, 0.08); }
+      else if (n === 's') { hiss(perc(d, t, 0.3, 0.2), t, 0.2, 'bandpass', 1800, 0.7); sweep(d, 'triangle', 220, 160, t, 0.1, 0.15); }
+      else if (n === 'h') hiss(perc(d, t, 0.1, 0.05), t, 0.05, 'highpass', 7000);
+      else if (n === 'x') hiss(perc(d, t, 0.12, 1.4), t, 1.4, 'highpass', 5000);
+    },
+    // jazz: the ride cymbal, the hi-hat foot pedal, a brushed snare and a soft kick
+    jazzKit(d, n, t) {
+      if (n === 'r') { hiss(perc(d, t, 0.06, 0.7), t, 0.7, 'bandpass', 7500, 1.2); sweep(d, 'square', 3200, 3150, t, 0.3, 0.005); }
+      else if (n === 'p') hiss(perc(d, t, 0.05, 0.05), t, 0.05, 'highpass', 8000);
+      else if (n === 's') hiss(perc(d, t, 0.07, 0.22, 0.02), t, 0.22, 'bandpass', 2500, 0.5);
+      else if (n === 'k') sweep(d, 'sine', 100, 50, t, 0.2, 0.2);
+    },
+    timpani(d, n, t) {
+      const f = mtof(n), o = osc('sine', f * 1.03, t, t + 1.7, perc(d, t, 0.45, 1.6));
+      o.frequency.exponentialRampToValueAtTime(f, t + 0.08);
+      osc('sine', f * 1.5, t, t + 0.6, perc(d, t, 0.1, 0.5));
+      hiss(perc(d, t, 0.15, 0.08), t, 0.08, 'lowpass', 500);
+    },
+    // piano: a handful of overtones that die away like a struck string, and stop when the key comes up
+    piano(d, n, t, dur) {
+      if (!pianoWave) { const im = new Float32Array([0, 1, 0.45, 0.22, 0.12, 0.06, 0.03]); pianoWave = ac.createPeriodicWave(new Float32Array(im.length), im); }
+      const f = mtof(n), o = ac.createOscillator(), g = gainAt(d, t);
+      o.setPeriodicWave(pianoWave); o.frequency.setValueAtTime(f, t);
+      g.gain.exponentialRampToValueAtTime(0.1, t + 0.005);
+      g.gain.setTargetAtTime(0.0001, t + 0.005, clamp(2.4 - Math.log2(f / 130) * 0.6, 0.4, 2.6) / 4);
+      g.gain.setTargetAtTime(0.0001, t + dur, 0.05);
+      o.connect(g); o.start(t); o.stop(t + dur + 0.4);
+    },
+    // accordion: two reeds a hair out of tune with each other, which is what makes it shimmer
+    accordion(d, n, t, dur) {
+      const f = mtof(n), g = gainAt(filter(d, 'lowpass', 2400), t), end = held(g, t, 0.04, 0.04, dur - 0.08, 0.08);
+      osc('sawtooth', f, t, end, g); osc('sawtooth', f * 1.006, t, end, g);
+    },
+    violin(d, n, t, dur) { bowed(d, mtof(n), t, dur, 0.05, 3200, 0.07, 0.007); },
+    cello(d, n, t, dur) { bowed(d, mtof(n), t, dur, 0.09, 1300, 0.1, 0.005); },
+    // bells: a bright ring plus the out-of-tune overtones metal bars have
+    bells(d, n, t) {
+      const f = mtof(n);
+      osc('sine', f, t, t + 1.3, perc(d, t, 0.1, 1.2)); osc('sine', f * 2.76, t, t + 0.5, perc(d, t, 0.035, 0.4)); osc('sine', f * 5.4, t, t + 0.2, perc(d, t, 0.015, 0.15));
+    },
+    harp(d, n, t) { pluck(d, mtof(n), t, 0.3, 2.5, 0.998, 0); },
+    dblBass(d, n, t, dur) { pluck(filter(d, 'lowpass', 900), mtof(n), t, 0.7, 1.2, 0.994, t + dur * 0.9); },
+    guitar(d, n, t, dur) { pluck(d, mtof(n), t, 0.3, 0.5, 0.995, t + dur * 0.8); },
+    // a howling singer: a buzzy tone through two vowel filters sliding from "ah" to "oo", scooping up into each note
+    howl(d, n, t, dur) {
+      const f = mtof(n), f1 = filter(d, 'bandpass', 750, 5), f2 = filter(d, 'bandpass', 1200, 7);
+      f1.frequency.setValueAtTime(750, t); f1.frequency.linearRampToValueAtTime(380, t + dur);
+      f2.frequency.setValueAtTime(1200, t); f2.frequency.linearRampToValueAtTime(850, t + dur);
+      const g = gainAt(f1, t); g.connect(f2);
+      const end = held(g, t, 0.6, 0.05, dur - 0.05, 0.15), o = osc('sawtooth', f * 0.89, t, end, g);
+      o.frequency.exponentialRampToValueAtTime(f, t + 0.09); o.frequency.setValueAtTime(f, t + dur); o.frequency.exponentialRampToValueAtTime(f * 0.93, t + dur + 0.15);
+      vibrato(o, f, t, end, 6, 0.012, 0.2);
+    },
+    // saxophone: a reedy tone whose filter opens as the note starts, with a little vibrato
+    sax(d, n, t, dur) {
+      const f = mtof(n), lp = filter(d, 'lowpass', 900, 4);
+      lp.frequency.setValueAtTime(900, t); lp.frequency.linearRampToValueAtTime(2200, t + 0.06);
+      const g = gainAt(lp, t), end = held(g, t, 0.06, 0.03, dur - 0.05, 0.08);
+      vibrato(osc('sawtooth', f, t, end, g), f, t, end, 5, 0.008, 0.2);
     }
-    if (layers.bass && BASS[b]) tone(BASS[b], BASS[b] * 0.98, 0.2, 'sawtooth', 0.06, d);
-    if (layers.lead && LEAD[b]) tone(LEAD[b], LEAD[b], 0.18, 'triangle', 0.06, d);
-    if (layers.chords) for (const [at, len, notes] of HARMONY) if (at === s) for (const n of notes) pad(mtof(n), len * 0.125, 0.03, d);
+  };
+  const SUSTAIN = new Set(['synthPad', 'accordion', 'violin', 'cello', 'howl', 'sax']);   // held notes: joining partway still plays the rest
+  const DRUM_WORDS = { k: 'boom', s: 'tak', x: 'crash!', r: 'ding' };
+
+  // ---- the songs
+  const SONGS = {};
+  for (const [id, g] of Object.entries(GENRES)) {
+    const steps = g.prog.length * g.beats * 4;
+    SONGS[id] = { ...g, steps, parts: g.parts.map(p => {
+      const { evs, steps: len } = parseScore(p.score);
+      if (len !== steps) console.warn('song ' + id + ', ' + p.name + ': ' + len + ' steps, expected ' + steps);
+      const byStep = []; for (const e of evs) (byStep[e.at] = byStep[e.at] || []).push(e);
+      return { ...p, evs, byStep };
+    }) };
   }
-  // chords that come in mid-chord pick up the one that's already playing rather than wait for the next
-  function joinChords(s, d) {
-    for (const [at, len, notes] of HARMONY) if (at < s && s < at + len) for (const n of notes) pad(mtof(n), (at + len - s) * 0.125, 0.03, d);
+
+  // ---- the sequencer: steps are 16th notes, scheduled a moment ahead on the audio clock
+  let song = null, seq = null, seqStep = 0, seqNext = 0, seqStart = 0;
+  const active = new Set(), joining = new Set(), buses = new Map();   // parts playing, parts waiting for the next bar, their mixer channels
+  const shown = [];   // what to float up from each instrument, with the time it sounds: { t, part, text, chord }
+  const stepDur = () => 15 / song.bpm;
+  function openBus(i) {
+    if (!ac || muted || buses.has(i)) return;
+    const p = song.parts[i], bus = ac.createGain(); bus.gain.value = p.vol || 1; bus.connect(master());
+    let input = bus;
+    if (p.fx === 'drive') { input = ac.createWaveShaper(); input.curve = drive(); input.connect(filter(bus, 'lowpass', 2800)); }
+    buses.set(i, { bus, input });
   }
-  function newPadBus() { if (ac && !padBus) { padBus = ac.createGain(); padBus.connect(ac.destination); } }
-  // a held note for the chords, routed through padBus so stopping the music can fade them out
-  function pad(f, dur, vol, delay) {
-    const a = actx(); if (!a || muted || !padBus) return;
-    const t = a.currentTime + (delay || 0);
-    const o = a.createOscillator(), g = a.createGain();
-    o.type = 'triangle'; o.frequency.setValueAtTime(f, t);
-    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.08);
-    g.gain.setValueAtTime(vol, t + dur - 0.12); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-    o.connect(g).connect(padBus); o.start(t); o.stop(t + dur + 0.02);
+  function closeBus(i) { const b = buses.get(i); if (b) { b.bus.gain.setTargetAtTime(0, ac.currentTime, 0.05); buses.delete(i); } }
+  // an event's notes, each item turned into a MIDI note (or kept as a drum letter)
+  function resolve(p, ev) {
+    const root = song.prog[Math.floor(ev.at / (song.beats * 4)) % song.prog.length] - 1;
+    return ev.items.map(it => {
+      if (it.drum) return { n: it.drum };
+      const d = it.ch !== undefined ? root + it.ch : it.deg;
+      return { n: degMidi(song.key, mode, p.oct, d), d };
+    });
   }
-  function fadePads() {
-    if (padBus && ac) padBus.gain.setTargetAtTime(0, ac.currentTime, 0.05);
-    padBus = null;
+  function play(i, ev, t, from) {
+    const b = buses.get(i); if (!b) return;
+    const p = song.parts[i], dur = (ev.len - (from || 0)) * stepDur(), notes = resolve(p, ev);
+    for (const q of notes) VOICES[p.voice](b.input, q.n, t, dur);
+    if (from) return;
+    if (p.show === 'notes') shown.push({ t, part: i, text: noteName(song.key, notes[0].d, notes[0].n) });
+    else if (p.show === 'drums') { const w = notes.map(q => DRUM_WORDS[q.n]).find(Boolean); if (w) shown.push({ t, part: i, text: w }); }
+  }
+  function musicStep(s, t) {
+    const bar = song.beats * 4;
+    if (s % bar === 0) {
+      for (const i of joining) {
+        active.add(i); openBus(i);
+        if (SUSTAIN.has(song.parts[i].voice)) for (const ev of song.parts[i].evs) if (ev.at < s && s < ev.at + ev.len) play(i, ev, t, s - ev.at);
+      }
+      joining.clear();
+      for (const i of active) if (song.parts[i].show === 'chord' && buses.has(i))
+        shown.push({ t, part: i, chord: true, text: chordLabel(song.key, mode, song.prog[s / bar % song.prog.length] - 1, song.sevenths) });
+    }
+    const swing = song.swing && s % 4 === 2 ? stepDur() * 2 / 3 : 0;   // swung eighths: the "and" comes late, long-short
+    for (const i of active) { const evs = song.parts[i].byStep[s]; if (evs) for (const ev of evs) play(i, ev, t + swing); }
   }
   function tone(f0, f1, dur, type, vol, delay) {
     const a = actx(); if (!a || muted) return;
@@ -1147,24 +1552,33 @@ const sfx = (() => {
     crunch() { tone(140, 70, 0.08, 'square', 0.06); tone(140, 70, 0.08, 'square', 0.06, 0.13); },
     chime() { [523, 659, 784, 1047].forEach((f, i) => tone(f, f * 1.001, 0.4, 'sine', 0.12, i * 0.11)); },
     fanfare() { [523, 659, 784, 1047, 784, 1047, 1319].forEach((f, i) => tone(f, f * 1.001, 0.3, 'triangle', 0.1, i * 0.14)); },
-    // the dance party band: an 8-bar song at 120 bpm, scheduled a beat ahead. Each instrument
-    // switches its own part on or off; the song keeps its place so everything stays in time
-    setPart(part, on) {
-      const a = actx(); if (!a) return;
-      if (on) joining.add(part); else { joining.delete(part); layers[part] = false; }
-      const any = joining.size > 0 || Object.values(layers).some(Boolean);
-      if (any && !seq) {
-        seqStep = 0; seqNext = a.currentTime + 0.05;
+    setSong(id) { this.stopMusic(); song = SONGS[id]; },
+    // a part joins at the start of the next bar, so each one comes in cleanly; the song keeps its place
+    setPart(i, on) {
+      const a = actx(); if (!a || !song) return;
+      if (on) joining.add(i); else { joining.delete(i); active.delete(i); closeBus(i); }
+      if ((joining.size || active.size) && !seq) {
+        seqStep = 0; seqNext = seqStart = a.currentTime + 0.05;
         seq = setInterval(() => {
           const a2 = actx(); if (!a2) return;
-          while (seqNext < a2.currentTime + 0.3) { musicStep(seqStep, Math.max(0, seqNext - a2.currentTime)); seqStep = (seqStep + 1) % SONG_STEPS; seqNext += 0.125; }
+          while (seqNext < a2.currentTime + 0.3) { musicStep(seqStep, seqNext); seqStep = (seqStep + 1) % song.steps; seqNext += stepDur(); }
         }, 80);
       }
-      if (part === 'chords' && !on) fadePads();
-      if (!any) this.stopMusic();
+      if (!joining.size && !active.size) this.stopMusic();
     },
-    stopMusic() { for (const k in layers) layers[k] = false; joining.clear(); if (seq) clearInterval(seq); seq = null; fadePads(); },
-    get muted() { return muted; }, set muted(v) { muted = v; store.set('muted', v ? '1' : '0'); if (v) fadePads(); else if (layers.chords && seq) { newPadBus(); joinChords(seqStep, Math.max(0, seqNext - ac.currentTime)); } }
+    stopMusic() { joining.clear(); active.clear(); for (const i of [...buses.keys()]) closeBus(i); if (seq) clearInterval(seq); seq = null; shown.length = 0; },
+    // where the music is, in beats since it started (the dancing follows this), or null when nothing is playing
+    beat() { return seq && ac && ac.state === 'running' ? Math.max(0, (ac.currentTime - seqStart) / (stepDur() * 4)) : null; },
+    // the notes and chords that have just sounded, for the floating labels
+    heard() {
+      if (!ac) return [];
+      const now = ac.currentTime, out = [];
+      while (shown.length && shown[0].t <= now) out.push(shown.shift());
+      return out;
+    },
+    get mode() { return mode; }, set mode(v) { mode = v; store.set('mode', v); },
+    get muted() { return muted; },
+    set muted(v) { muted = v; store.set('muted', v ? '1' : '0'); if (v) for (const i of [...buses.keys()]) closeBus(i); else for (const i of active) openBus(i); }
   };
 })();
 
@@ -1234,7 +1648,7 @@ function endPointer(e) {
     const x = clamp(w.x, MARGIN, WORLD.w - MARGIN), y = clamp(w.y, MARGIN, WORLD.h - MARGIN);
     if (tool === 'treat') dropTreat(x, y);
     else if (tool === 'ball') throwBall(x, y);
-    else if (tool === 'dance') placeInstrument(x, y);
+    else if (tool === 'stage') tapStage(x, y);
   }
   // a plain click/tap on the grass with the hand (no drag, no pinch) also counts as using it
   if (gesture && gesture.type === 'pan' && !pt.moved && pointers.size === 1 && tool === 'hand') releaseFormation();
@@ -1270,7 +1684,7 @@ window.addEventListener('keydown', e => {
   else if (e.key === '+' || e.key === '=') zoomAt(W / 2, H / 2, camT.zoom * 1.4, false);
   else if (e.key === '-' || e.key === '_') zoomAt(W / 2, H / 2, camT.zoom / 1.4, false);
   else if (e.key === '1') setTool('hand'); else if (e.key === '2') setTool('call');
-  else if (e.key === '3') setTool('treat'); else if (e.key === '4') setTool('ball'); else if (e.key === '5') setTool('dance');
+  else if (e.key === '3') setTool('treat'); else if (e.key === '4') setTool('ball'); else if (e.key === '5') setTool('stage');
   else if (e.key === 'Escape') { closeMenu(); $('help').classList.add('hidden'); }
 });
 // the mouse cursor matches the tool (see the cur-* rules in style.css)
@@ -1297,8 +1711,9 @@ mini.addEventListener('pointerup', () => { miniDown = false; });
 mini.addEventListener('pointercancel', () => { miniDown = false; });
 
 // ============================================================ HUD
-// Toolbar: Hand and Call are top-level; Treat, Ball and Dance live in the Play menu, whose button shows the chosen one.
-const PLAY_TOOLS = { treat: ['🦴', 'Treat'], ball: ['🎾', 'Ball'], dance: ['📻', 'Dance'] };
+// Toolbar: Hand and Call are top-level; Treat and Ball live in the Play menu, whose button shows the chosen one.
+// Dance Party has its own button and menu: pick a kind of music, and the tool builds and plays that stage.
+const PLAY_TOOLS = { treat: ['🦴', 'Treat'], ball: ['🎾', 'Ball'] };
 function setTool(t) {
   tool = t;
   document.querySelectorAll('#toolbar .tool').forEach(b => b.classList.toggle('active', b.dataset.tool === t));
@@ -1306,8 +1721,24 @@ function setTool(t) {
   $('btn-play').classList.toggle('active', !!play);
   if (play) { $('play-icon').textContent = play[0]; $('play-label').textContent = play[1]; }
   document.querySelectorAll('#play-menu button').forEach(b => b.classList.toggle('active', b.dataset.tool === t));
+  $('btn-party').classList.toggle('active', t === 'stage');
+  $('party-icon').textContent = t === 'stage' ? GENRES[genre].ch : '🎤';
+  document.querySelectorAll('#stage-menu [data-genre]').forEach(b => b.classList.toggle('active', t === 'stage' && b.dataset.genre === genre));
   updateCursor();
 }
+// picking a kind of music: the next tap on the grass builds that stage, or the stage that's up swaps over
+function chooseGenre(g) {
+  genre = g; setTool('stage');
+  if (stage && stage.genre !== g) { const { x, y } = stage; packUpStage(); placeStage(x, y); }
+  else if (!stage) showToast(GENRES[g].ch + ' ' + GENRES[g].name + '<small>Tap the grass to build the stage.</small>', 3000);
+}
+document.querySelectorAll('#stage-menu [data-genre]').forEach(b => b.addEventListener('click', () => { sfx.unlock(); closeMenu(); chooseGenre(b.dataset.genre); }));
+function updateModeButton() { $('btn-mode').innerHTML = sfx.mode === 'major' ? '🌞 Major <small>happy · tap for minor</small>' : '🌧️ Minor <small>sad · tap for major</small>'; }
+$('btn-mode').addEventListener('click', () => {
+  sfx.unlock(); sfx.mode = sfx.mode === 'major' ? 'minor' : 'major'; updateModeButton();
+  showToast(sfx.mode === 'major' ? '🌞 Major<small>The same song, sounding happy.</small>' : '🌧️ Minor<small>The same song, sounding sad. Listen to the chords change!</small>', 3000);
+});
+$('btn-packup').addEventListener('click', () => { closeMenu(); packUpStage(); if (tool === 'stage') setTool('hand'); });
 document.querySelectorAll('[data-tool]').forEach(b => b.addEventListener('click', () => { sfx.unlock(); setTool(b.dataset.tool); closeMenu(); }));
 // pop-up menus: a button with data-menu toggles its menu; opening one closes the others
 function closeMenu() { document.querySelectorAll('.menu').forEach(m => m.classList.add('hidden')); }
@@ -1538,15 +1969,7 @@ function render() {
     }
     ctx.globalAlpha = 1;
   }
-  // the band
-  for (const b of band) {
-    const pulse = 1 + 0.07 * Math.abs(Math.sin(party.beat * Math.PI));
-    ctx.fillStyle = 'rgba(0,0,0,0.18)'; ctx.beginPath(); ctx.ellipse(b.x, b.y + 16, 20, 6, 0, 0, TAU); ctx.fill();
-    ctx.save(); ctx.translate(b.x, b.y); ctx.scale(pulse, pulse);
-    ctx.font = '36px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillStyle = '#000'; ctx.fillText(b.ch, 0, 0);   // emoji take their opacity from fillStyle
-    ctx.restore();
-  }
+  if (stage) drawStage(stage);
   // ball shadow
   if (ball.active) { ctx.fillStyle = 'rgba(0,0,0,0.18)'; ctx.beginPath(); ctx.ellipse(ball.x, ball.y + 4, 7 * (1 - ball.z / 600), 3.5 * (1 - ball.z / 600), 0, 0, TAU); ctx.fill(); }
 
@@ -1586,14 +2009,15 @@ function render() {
       const pose = poseOf(p);
       const lv = sprites[p.look][pose][p.facing < 0 ? 1 : 0];
       const img = px >= SPR * 0.75 ? lv[0] : px >= SPR * 0.375 ? lv[1] : lv[2];
-      if (p.rot) {   // rolling over: spin the sprite about the body centre
-        ctx.setTransform(dpr, 0, 0, dpr, dpr * sx, dpr * sy); ctx.rotate(p.rot);   // translation is in device pixels
+      const hop = hopOf(p) * s;
+      if (p.rot || p.tilt) {   // rolling over, or dancing: spin the sprite about the body centre
+        ctx.setTransform(dpr, 0, 0, dpr, dpr * sx, dpr * (sy - hop)); ctx.rotate(p.rot || p.tilt);   // translation is in device pixels
         ctx.drawImage(img, -SPR_OX * k, -SPR_OY * k, px, px);
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
         continue;
       }
-      const hop = hopOf(p) * s;
       ctx.drawImage(img, sx - SPR_OX * k, sy - SPR_OY * k - hop, px, px);
+      if (isBallerina(p)) { ctx.save(); ctx.translate(sx, sy - hop); ctx.scale(s * p.facing, s); drawTutu(ctx); ctx.restore(); }
       if (p.petted && s > 0.5 && !hop) {
         // the collar as it looks up close: only the band under the chin shows (the head hides the rest), plus the tag
         const c = GEOM[POSES[pose]].collar, cx = sx + c[0] * s * p.facing, cy = sy + c[1] * s, rot = -0.35 * p.facing;
@@ -1608,7 +2032,7 @@ function render() {
       const hop = hopOf(p);
       ctx.setTransform(dpr * s * p.facing, 0, 0, dpr * s, dpr * (ox + p.x * z), dpr * (oy + (p.y - hop) * z));
       if (p.rot) ctx.rotate(p.rot * p.facing);
-      else if (p.state === 'dance') ctx.rotate(Math.sin(p.dance * TAU) * 0.12);   // a little wiggle with each bounce
+      else if (p.tilt) ctx.rotate(p.tilt);   // dancing
       const pose = POSES[poseOf(p)];
       const o = { collar: p.petted ? p.collar : null, wag: Math.sin(p.wag) * (p.state === 'happy' || p.state === 'dance' ? 0.5 : 0.18) };
       if (pw && GEOM[pose].eyes === 'open') {
@@ -1616,10 +2040,12 @@ function render() {
         if (d < 300 && d > 1) { const f = Math.min(1, 40 / d) * 0.9; o.ex = dx / d * f * p.facing; o.ey = dy / d * f; }
       }
       drawPuppy(ctx, LOOKS[p.look], pose, o);
+      if (isBallerina(p)) drawTutu(ctx);
     }
   }
   // ball
   ctx.setTransform(dpr * z, 0, 0, dpr * z, dpr * ox, dpr * oy);
+  if (stage && !dots) for (const q of stage.seats) drawInstrument(q);
   if (ball.active) {
     const by = ball.y - ball.z;
     ctx.fillStyle = '#c6e64a'; ctx.beginPath(); ctx.arc(ball.x, by, 7, 0, TAU); ctx.fill();
@@ -1628,7 +2054,7 @@ function render() {
   }
   // world particles
   for (const q of parts) {
-    if (dots && q.kind !== 'heart') continue;   // sleep z's and crumbs would dwarf 3px puppies
+    if (dots && q.kind !== 'heart' && q.kind !== 'label') continue;   // sleep z's and crumbs would dwarf 3px puppies
     const a = Math.min(1, q.life / q.max * 1.5);
     if (q.kind === 'heart') {
       const s = dots ? 4 / z : Math.max(5, 9 / z);
@@ -1643,6 +2069,13 @@ function render() {
       ctx.font = '700 ' + Math.max(12, 9 / z) + 'px Fredoka, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       const nx = q.x + Math.sin(now * 5 + q.ph) * 4;
       ctx.strokeText(q.ch, nx, q.y); ctx.fillText(q.ch, nx, q.y); ctx.globalAlpha = 1;
+    }
+    else if (q.kind === 'label') {   // a note name or a chord floating up from an instrument
+      const fs = q.chord ? Math.max(15, 12 / z) : Math.max(12, 9 / z);
+      ctx.globalAlpha = a; ctx.font = '700 ' + fs + 'px Fredoka, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      const nx = q.x + Math.sin(now * 3 + q.ph) * 3;
+      ctx.lineWidth = fs / 5; ctx.strokeStyle = q.chord ? 'rgba(90,40,0,0.85)' : 'rgba(0,0,0,0.55)'; ctx.strokeText(q.text, nx, q.y);
+      ctx.fillStyle = q.c; ctx.fillText(q.text, nx, q.y); ctx.globalAlpha = 1;
     }
     else if (q.kind === 'zz') {
       ctx.globalAlpha = a; ctx.fillStyle = '#fff'; ctx.strokeStyle = 'rgba(0,0,0,0.5)'; ctx.lineWidth = 0.8;
@@ -1667,12 +2100,70 @@ function render() {
   }
   ctx.globalAlpha = 1;
 }
+const isBallerina = p => p.state === 'dance' && GENRES[p.inst.genre].dance === 'ballet';
+function drawTutu(g) {   // in the puppy's own units, tiptoe pose
+  ell(g, -1, 4, 11.5, 3.4, 0, '#ff8fc8'); ell(g, -1, 3.2, 9, 2.2, 0, '#ffc1e3');
+}
+function drawStage(s) {
+  const g = GENRES[s.genre], th = g.theme, L = s.x - STAGE_W / 2, T = s.y - STAGE_H / 2, B = s.y + STAGE_H / 2;
+  ctx.fillStyle = 'rgba(0,0,0,0.2)'; ctx.fillRect(L + 8, T - CURTAIN_H + 10, STAGE_W, CURTAIN_H + STAGE_H + 16);
+  // the backdrop, with folds, and the kind of music across it
+  ctx.fillStyle = th.curtain; ctx.fillRect(L, T - CURTAIN_H, STAGE_W, CURTAIN_H);
+  ctx.fillStyle = th.fold; for (let x = L + 10; x < L + STAGE_W - 4; x += 22) ctx.fillRect(x, T - CURTAIN_H + 12, 4, CURTAIN_H - 12);
+  ctx.fillStyle = th.trim; ctx.fillRect(L - 6, T - CURTAIN_H - 4, STAGE_W + 12, 12);
+  ctx.font = '700 24px Fredoka, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.lineWidth = 5; ctx.strokeStyle = 'rgba(0,0,0,0.45)'; ctx.fillStyle = th.text;
+  const label = g.name + (sfx.mode === 'minor' ? ' · minor' : '');
+  ctx.strokeText(label, s.x, T - CURTAIN_H / 2 + 5); ctx.fillText(label, s.x, T - CURTAIN_H / 2 + 5);
+  // the floor boards, the front edge, and footlights that blink on the beat
+  ctx.fillStyle = th.floor; ctx.fillRect(L, T, STAGE_W, STAGE_H);
+  ctx.strokeStyle = th.plank; ctx.lineWidth = 1.5; ctx.beginPath();
+  for (let y = T + 18; y < B; y += 18) { ctx.moveTo(L, y); ctx.lineTo(L + STAGE_W, y); }
+  ctx.stroke();
+  ctx.fillStyle = th.edge; ctx.fillRect(L, B, STAGE_W, 14);
+  const beat = s.beat | 0;
+  for (let i = 0, x = L + 14; x < L + STAGE_W; x += 29, i++) {
+    ctx.fillStyle = s.playing && (i + beat) % 2 === 0 ? th.lights[i % th.lights.length] : 'rgba(255,255,255,0.28)';
+    ctx.beginPath(); ctx.arc(x, B + 7, 4, 0, TAU); ctx.fill();
+  }
+  // empty spots in the band, while the Dance Party tool is out
+  if (tool === 'stage' && s.seats.length < 4) {
+    ctx.setLineDash([4, 4]); ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(255,255,255,0.6)'; ctx.fillStyle = 'rgba(255,255,255,0.75)'; ctx.font = '700 18px Fredoka, sans-serif';
+    for (let i = 0; i < 4; i++) if (!s.seats.some(q => q.slot === i)) {
+      const x = s.x + SLOT_X[i], y = s.y + 6;
+      ctx.beginPath(); ctx.arc(x, y, 16, 0, TAU); ctx.stroke(); ctx.fillText('+', x, y + 1);
+    }
+    ctx.setLineDash([]);
+  }
+}
+function drawInstrument(q) {
+  ctx.globalAlpha = q.ready ? 1 : 0.5;   // see-through until its player arrives
+  const pulse = q.ready ? 1 + 0.06 * Math.abs(Math.sin(stage.beat * Math.PI)) : 1;
+  ctx.save(); ctx.translate(q.ix, q.iy); ctx.scale(pulse, pulse);
+  if (q.part.ch === 'harp') drawHarp();
+  else {
+    ctx.font = (q.part.size || (q.part.hold === 'held' ? 20 : 30)) + 'px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#000'; ctx.fillText(q.part.ch, 0, 0);   // emoji take their opacity from fillStyle
+  }
+  ctx.restore(); ctx.globalAlpha = 1;
+}
+function drawHarp() {   // there's no harp emoji: a golden frame and its strings
+  ctx.strokeStyle = 'rgba(255,255,255,0.85)'; ctx.lineWidth = 0.7; ctx.beginPath();
+  for (let x = -8; x <= 8; x += 2.2) {
+    const top = -12 - (x + 11) / 2, bot = x < -2 ? -12 + (x + 11) * 30 / 9 : 18;
+    if (bot > top) { ctx.moveTo(x, top); ctx.lineTo(x, bot); }
+  }
+  ctx.stroke();
+  ctx.strokeStyle = '#c9a227'; ctx.lineWidth = 3; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  ctx.beginPath(); ctx.moveTo(9, 18); ctx.lineTo(9, -22); ctx.quadraticCurveTo(0, -30, -11, -12); ctx.lineTo(-2, 18); ctx.closePath(); ctx.stroke();
+}
 let miniFrame = 0;
 function renderMini() {
   if (!miniVisible || (miniFrame++ & 3) !== 0) return;
   const mw = mini.width, mh = mini.height, kx = mw / WORLD.w, ky = mh / WORLD.h;
   mctx.fillStyle = '#6dbf5c'; mctx.fillRect(0, 0, mw, mh);
   for (let i = 0; i < N; i++) { const p = puppies[i]; mctx.fillStyle = p.petted ? '#ff6fa3' : '#5b3a1e'; mctx.fillRect(p.x * kx - 0.75, p.y * ky - 0.75, 1.5, 1.5); }
+  if (stage) { mctx.fillStyle = GENRES[stage.genre].theme.trim; mctx.fillRect((stage.x - STAGE_W / 2) * kx, (stage.y - STAGE_H / 2 - CURTAIN_H) * ky, STAGE_W * kx, (STAGE_H + CURTAIN_H) * ky); }
   const vw = W / cam.zoom * kx, vh = H / cam.zoom * ky;
   mctx.strokeStyle = '#fff'; mctx.lineWidth = 2;
   mctx.strokeRect(cam.x * kx - vw / 2, cam.y * ky - vh / 2, vw, vh);
@@ -1713,7 +2204,7 @@ function frame(t) {
   rebuildGrid();
   separate();
   updateBall(dt);
-  updateBand(dt);
+  updateStage(dt);
   updateMesses(dt);
   updateParts(dt);
   if (now < fireworksUntil && Math.random() < dt * 2.5) burstConfetti(rnd(W * 0.15, W * 0.85), rnd(H * 0.15, H * 0.5), 60, 400);
@@ -1738,6 +2229,8 @@ makePuppies();
 pettedCount = puppies.reduce((a, p) => a + (p.petted ? 1 : 0), 0);
 updateCounter();
 updateSoundIcon();
+updateModeButton();
+setTool('hand');
 refreshIntroText();
 camT.zoom = cam.zoom = minZoom(); clampCam(cam); clampCam(camT);
 if (params.get('intro') === '0') {
@@ -1750,5 +2243,5 @@ if (params.get('intro') === '0') {
 }
 requestAnimationFrame(frame);
 // small debug handle (used by the headless tests)
-window.TKP = { puppies, cam, camT, startFormation, endFormation, dropTreat, throwBall, LOOKS, POSES, drawPuppy, setTool, doTrick, placeInstrument, band, messes, showCard, get stats() { return stats; }, get frameCost() { return frameCost; }, get petted() { return pettedCount; }, get ball() { return ball; }, get formation() { return formation; } };
+window.TKP = { puppies, cam, camT, startFormation, endFormation, dropTreat, throwBall, LOOKS, POSES, drawPuppy, setTool, doTrick, placeStage, tapStage, packUpStage, chooseGenre, GENRES, sfx, get stage() { return stage; }, parts, messes, showCard, get stats() { return stats; }, get frameCost() { return frameCost; }, get petted() { return pettedCount; }, get ball() { return ball; }, get formation() { return formation; } };
 })();

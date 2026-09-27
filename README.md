@@ -18,7 +18,8 @@ Visit [johnhenryburns.github.io/two-thousand-puppies](https://johnhenryburns.git
 
 - **✋ Hand**: far away, wave through the crowd to shoo. Up close, tap a puppy to pet it.
 - **📣 Call**: press and hold, and the nearby puppies come running. Let go and they wander off again.
-- **🎁 Play** menu: a **🦴 Treat** (tap the grass to drop one), the **🎾 Ball** (tap to throw, the nearest puppy fetches it back), or a **📻 Dance party** (each tap puts down the next instrument, 🥁 drums, 🎸 bass, 🎺 trumpet and 🎹 keys, and its part joins the song at the next bar; up to 40 nearby puppies per instrument bounce to the beat while notes float out. Tap an instrument to take its part out, and with all four down the next tap moves the oldest. The party lasts 40 seconds from the last instrument added).
+- **🎁 Play** menu: a **🦴 Treat** (tap the grass to drop one) or the **🎾 Ball** (tap to throw, the nearest puppy fetches it back).
+- **🎤 Party**: pick a kind of music and tap the grass to build a stage: **🎧 Electronic**, **💃 Waltz** (in 3/4), **🎸 Rock and roll** (a 12-bar blues), **🩰 Classical** or **🎷 Jazz** (swung). The puppies clear off it. Tap the stage to call a puppy up to play each instrument, from the beat to the tune; every player adds a part at the next bar, and each one draws another 5% of the puppies to dance in front: bouncing, waltzing in pairs, jumping, ballet in tutus, or swinging. Tap a player to send them home. Note names float up from each instrument, and the chord instrument shows the chord and its number (**C I**, **Am vi**, **G7 V7**). **🌞 Major / 🌧️ Minor** plays the same song happy or sad.
 - **Commands**: tap a puppy and its card offers **Sit**, **Lie down**, **Roll over**, **Beg** and **Jump**.
 - **✨ Surprise**: all 2,000 puppies form a heart or a smiley, spell her name, line up in 20 blocks of 100, parade around the field as a marching band, bloom as a repeating firework, or roll a wave through a grid.
 - Puppies steer clear of potty spots.
@@ -57,4 +58,4 @@ https://johnhenryburns.github.io/two-thousand-puppies/?name=Ada&days=1846
 
 - `index.html`: markup for the HUD, title screen, and help.
 - `style.css`: styles.
-- `game.js`: everything else. Puppies are drawn procedurally on a canvas and cached as sprites; at high zoom they're drawn as vectors so they stay crisp. A spatial hash keeps the 2,000-body crowd simulation cheap.
+- `game.js`: everything else. Puppies are drawn procedurally on a canvas and cached as sprites; at high zoom they're drawn as vectors so they stay crisp. A spatial hash keeps the 2,000-body crowd simulation cheap. The music is synthesized with the Web Audio API (no sound files): songs are written in scale degrees over a chord progression, near the top of the MUSIC section, so they work in major and minor.
