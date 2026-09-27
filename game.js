@@ -592,8 +592,11 @@ const parts = [];              // world-space particles
 const confetti = [];           // screen-space particles
 const callPoint = { type: 'point', x: 0, y: 0 };
 let calling = false;           // true while the Call tool is held: crowd pressure is ignored so the pile can form
-// dance party: a boombox on the grass, puppies nearby come and bounce to the beat
-const boombox = { on: false, x: 0, y: 0, t: 0, beat: 0, noteT: 0, recruitT: 0 };
+// dance party: up to four instruments on the grass, each adding its part to the song;
+// puppies nearby come and bounce to the beat
+const BAND = [{ part: 'drums', ch: '🥁' }, { part: 'bass', ch: '🎸' }, { part: 'lead', ch: '🎺' }, { part: 'chords', ch: '🎹' }];
+const band = [];               // { part, ch, x, y, noteT, recruitT, gone }, in the order they were put down
+const party = { t: 0, beat: 0 };
 const DANCE_R = 330, DANCE_TIME = 40;
 // potty breaks: rare, and they fade after a while
 const messes = [];             // { kind: 'poo' | 'pee', x, y, life }
@@ -653,13 +656,13 @@ function updatePuppy(p, dt) {
       break;
     case 'seek': {
       const o = p.obj;
-      if (!o || o.gone || (o.type === 'treat' && o.eaten) || (o.type === 'ball' && (ball.state === 'carried' || !ball.active)) || (o.type === 'dance' && !boombox.on)) { toIdle(p, 0.5); break; }
+      if (!o || o.gone || (o.type === 'treat' && o.eaten) || (o.type === 'ball' && (ball.state === 'carried' || !ball.active)) || (o.type === 'dance' && o.inst.gone)) { toIdle(p, 0.5); break; }
       const dx = o.x - p.x, dy = o.y - p.y, d = Math.hypot(dx, dy);
       const arrive = o.type === 'point' ? 26 : o.type === 'treat' ? 13 : o.type === 'dance' ? 8 : 15;
       if (d < arrive) {
         if (o.type === 'treat') { o.eaten = true; p.state = 'eat'; p.t = 1.7; p.vx = p.vy = 0; if (dx < 0) p.facing = -1; else p.facing = 1; sfx.crunch(); }
         else if (o.type === 'ball') { if (ball.z < 25) pickUpBall(p); else damp(p, 6, dt); }
-        else if (o.type === 'dance') { p.state = 'dance'; p.dance = Math.random(); p.vx = p.vy = 0; p.obj = null; p.facing = p.x < boombox.x ? 1 : -1; }
+        else if (o.type === 'dance') { p.state = 'dance'; p.inst = o.inst; p.dance = Math.random(); p.vx = p.vy = 0; p.obj = null; p.facing = p.x < p.inst.x ? 1 : -1; }
         else toIdle(p, rnd(0.4, 1));
         break;
       }
@@ -686,7 +689,7 @@ function updatePuppy(p, dt) {
       }
       break;
     case 'dance':
-      if (!boombox.on) { toIdle(p); break; }
+      if (p.inst.gone) { toIdle(p); break; }
       p.dance += dt; damp(p, 6, dt);
       p.facing = ((p.dance * 2) | 0) & 1 ? -1 : 1;   // turn around on every beat
       break;
@@ -799,46 +802,52 @@ function doTrick(p, trick) {
   p.vx = p.vy = 0; p.rot = 0; p.obj = null;
   sfx.pop(); showCard(p, 8000);
 }
-// dance party
-function placeBoombox(x, y) {
+// dance party: each tap puts down the next instrument, tapping one takes it away again
+function placeInstrument(x, y) {
   releaseFormation();
-  if (boombox.on && dist(x, y, boombox.x, boombox.y) < 40) { stopBoombox(); return; }   // tap the boombox to switch it off
-  if (boombox.on) stopBoombox();
-  boombox.on = true; boombox.x = x; boombox.y = y; boombox.t = DANCE_TIME; boombox.beat = 0; boombox.recruitT = 0; boombox.noteT = 0;
-  stats.dances = (stats.dances || 0) + 1; saveStats();
-  sfx.startMusic();
+  const hit = band.find(b => dist(x, y, b.x, b.y) < 40);
+  if (hit) { removeInstrument(hit); return; }
+  if (band.length >= BAND.length) removeInstrument(band[0]);   // a full band: the oldest one moves here
+  if (!band.length) { party.beat = 0; stats.dances = (stats.dances || 0) + 1; saveStats(); }
+  const next = BAND.find(k => !band.some(b => b.part === k.part));
+  const b = { part: next.part, ch: next.ch, x, y, noteT: 0, recruitT: 0, gone: false };
+  band.push(b); party.t = DANCE_TIME;
+  sfx.setPart(b.part, true);
 }
-function stopBoombox() {
-  if (!boombox.on) return;
-  boombox.on = false; sfx.stopMusic();
-  for (const p of puppies) if (p.state === 'dance' || (p.state === 'seek' && p.obj && p.obj.type === 'dance')) toIdle(p, rnd(0.2, 1.5));
+function removeInstrument(b) {
+  b.gone = true; band.splice(band.indexOf(b), 1);
+  sfx.setPart(b.part, false);
+  for (const p of puppies) if ((p.state === 'dance' && p.inst === b) || (p.state === 'seek' && p.obj && p.obj.type === 'dance' && p.obj.inst === b)) toIdle(p, rnd(0.2, 1.5));
 }
-const DANCE_MAX = 40;   // dancers at a time, so the floor stays a ring around the boombox rather than a pile on it
-function recruitDancers() {
+function stopBand() { while (band.length) removeInstrument(band[band.length - 1]); }
+const DANCE_MAX = 40;   // dancers per instrument, so the floor stays a ring around it rather than a pile on it
+function recruitDancers(b) {
   let dancing = 0;
-  for (const p of puppies) if (p.state === 'dance' || (p.state === 'seek' && p.obj && p.obj.type === 'dance')) dancing++;
+  for (const p of puppies) if ((p.state === 'dance' && p.inst === b) || (p.state === 'seek' && p.obj && p.obj.type === 'dance' && p.obj.inst === b)) dancing++;
   if (dancing >= DANCE_MAX) return;
   const cands = [];
-  eachNear(boombox.x, boombox.y, DANCE_R, (p, d) => { if (isFree(p)) cands.push([d, p]); });
-  cands.sort((a, b) => a[0] - b[0]);
+  eachNear(b.x, b.y, DANCE_R, (p, d) => { if (isFree(p)) cands.push([d, p]); });
+  cands.sort((a, c) => a[0] - c[0]);
   for (const [, p] of cands.slice(0, DANCE_MAX - dancing)) {
-    // everyone gets their own spot on the ring around the boombox
-    const a = Math.atan2(p.y - boombox.y, p.x - boombox.x) + rnd(-0.6, 0.6), r = rnd(50, 200);
-    p.obj = { type: 'dance', x: clamp(boombox.x + Math.cos(a) * r, MARGIN, WORLD.w - MARGIN), y: clamp(boombox.y + Math.sin(a) * r, MARGIN, WORLD.h - MARGIN) };
+    // everyone gets their own spot on the ring around the instrument
+    const a = Math.atan2(p.y - b.y, p.x - b.x) + rnd(-0.6, 0.6), r = rnd(50, 200);
+    p.obj = { type: 'dance', inst: b, x: clamp(b.x + Math.cos(a) * r, MARGIN, WORLD.w - MARGIN), y: clamp(b.y + Math.sin(a) * r, MARGIN, WORLD.h - MARGIN) };
     p.state = 'seek'; p.t = 10;
   }
 }
-function updateBoombox(dt) {
-  if (!boombox.on) return;
-  boombox.t -= dt; boombox.beat += dt * 2;   // 120 bpm
-  boombox.recruitT -= dt; if (boombox.recruitT <= 0) { recruitDancers(); boombox.recruitT = 1.5; }
-  boombox.noteT -= dt;
-  if (boombox.noteT <= 0) {
-    boombox.noteT = 0.28;
-    parts.push({ kind: 'note', x: boombox.x + rnd(-10, 10), y: boombox.y - 12, vx: rnd(-12, 12), vy: rnd(-42, -28), life: 1.8, max: 1.8,
-      c: ['#ff6fa3', '#4fc3f7', '#ffd54f', '#ba68c8', '#81c784'][(Math.random() * 5) | 0], ch: Math.random() < 0.5 ? '♪' : '♫', ph: Math.random() * TAU });
+function updateBand(dt) {
+  if (!band.length) return;
+  party.t -= dt; party.beat += dt * 2;   // 120 bpm
+  for (const b of band) {
+    b.recruitT -= dt; if (b.recruitT <= 0) { recruitDancers(b); b.recruitT = 1.5; }
+    b.noteT -= dt;
+    if (b.noteT <= 0) {
+      b.noteT = 0.28 + band.length * 0.1;   // a bigger band shouldn't mean a blizzard of notes
+      parts.push({ kind: 'note', x: b.x + rnd(-10, 10), y: b.y - 12, vx: rnd(-12, 12), vy: rnd(-42, -28), life: 1.8, max: 1.8,
+        c: ['#ff6fa3', '#4fc3f7', '#ffd54f', '#ba68c8', '#81c784'][(Math.random() * 5) | 0], ch: Math.random() < 0.5 ? '♪' : '♫', ph: Math.random() * TAU });
+    }
   }
-  if (boombox.t <= 0) stopBoombox();
+  if (party.t <= 0) stopBand();
 }
 function updateMesses(dt) {
   for (let i = messes.length - 1; i >= 0; i--) { messes[i].life -= dt; if (messes[i].life <= 0) messes.splice(i, 1); }
@@ -1075,15 +1084,51 @@ const sfx = (() => {
     if (ac && ac.state === 'suspended') ac.resume();
     return ac;
   }
-  let seq = null, seqStep = 0, seqNext = 0;
+  let seq = null, seqStep = 0, seqNext = 0, padBus = null;
   const BASS = [110, 0, 110, 0, 146.8, 0, 110, 0, 130.8, 0, 110, 0, 98, 0, 110, 0];
   const LEAD = [440, 0, 523, 0, 587, 0, 523, 0, 440, 0, 392, 0, 440, 0, 0, 0];
+  // chord pad over 8 bars, Am | C | G | F: [start step, length in steps, midi notes]
+  const HARMONY = [
+    [0, 32, [57, 60, 64]],
+    [32, 32, [55, 60, 64]],
+    [64, 32, [55, 59, 62]],
+    [96, 32, [53, 57]], [96, 14, [62]], [112, 16, [60]],
+  ];
+  const SONG_STEPS = 128;
+  const mtof = n => 440 * Math.pow(2, (n - 69) / 12);
+  const layers = { drums: false, bass: false, lead: false, chords: false };   // one per instrument on the grass
+  const joining = new Set();   // parts waiting for the next bar so each one comes in cleanly
   function musicStep(s, d) {
-    if (s % 4 === 0) tone(160, 45, 0.16, 'sine', 0.35, d);            // kick
-    if (s % 8 === 4) tone(900, 200, 0.12, 'triangle', 0.12, d);       // snare-ish
-    if (s % 4 === 2) tone(7000, 3000, 0.04, 'square', 0.025, d);      // hat
-    if (BASS[s]) tone(BASS[s], BASS[s] * 0.98, 0.2, 'sawtooth', 0.06, d);
-    if (LEAD[s]) tone(LEAD[s], LEAD[s], 0.18, 'triangle', 0.06, d);
+    const b = s % 16;
+    if (b === 0) for (const part of joining) { layers[part] = true; if (part === 'chords') { newPadBus(); joinChords(s, d); } }
+    if (b === 0) joining.clear();
+    if (layers.drums) {
+      if (b % 4 === 0) tone(160, 45, 0.16, 'sine', 0.35, d);            // kick
+      if (b % 8 === 4) tone(900, 200, 0.12, 'triangle', 0.12, d);       // snare-ish
+      if (b % 4 === 2) tone(7000, 3000, 0.04, 'square', 0.025, d);      // hat
+    }
+    if (layers.bass && BASS[b]) tone(BASS[b], BASS[b] * 0.98, 0.2, 'sawtooth', 0.06, d);
+    if (layers.lead && LEAD[b]) tone(LEAD[b], LEAD[b], 0.18, 'triangle', 0.06, d);
+    if (layers.chords) for (const [at, len, notes] of HARMONY) if (at === s) for (const n of notes) pad(mtof(n), len * 0.125, 0.03, d);
+  }
+  // chords that come in mid-chord pick up the one that's already playing rather than wait for the next
+  function joinChords(s, d) {
+    for (const [at, len, notes] of HARMONY) if (at < s && s < at + len) for (const n of notes) pad(mtof(n), (at + len - s) * 0.125, 0.03, d);
+  }
+  function newPadBus() { if (ac && !padBus) { padBus = ac.createGain(); padBus.connect(ac.destination); } }
+  // a held note for the chords, routed through padBus so stopping the music can fade them out
+  function pad(f, dur, vol, delay) {
+    const a = actx(); if (!a || muted || !padBus) return;
+    const t = a.currentTime + (delay || 0);
+    const o = a.createOscillator(), g = a.createGain();
+    o.type = 'triangle'; o.frequency.setValueAtTime(f, t);
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.08);
+    g.gain.setValueAtTime(vol, t + dur - 0.12); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g).connect(padBus); o.start(t); o.stop(t + dur + 0.02);
+  }
+  function fadePads() {
+    if (padBus && ac) padBus.gain.setTargetAtTime(0, ac.currentTime, 0.05);
+    padBus = null;
   }
   function tone(f0, f1, dur, type, vol, delay) {
     const a = actx(); if (!a || muted) return;
@@ -1102,17 +1147,24 @@ const sfx = (() => {
     crunch() { tone(140, 70, 0.08, 'square', 0.06); tone(140, 70, 0.08, 'square', 0.06, 0.13); },
     chime() { [523, 659, 784, 1047].forEach((f, i) => tone(f, f * 1.001, 0.4, 'sine', 0.12, i * 0.11)); },
     fanfare() { [523, 659, 784, 1047, 784, 1047, 1319].forEach((f, i) => tone(f, f * 1.001, 0.3, 'triangle', 0.1, i * 0.14)); },
-    // the boombox: a little 16-step loop at 120 bpm, scheduled a beat ahead
-    startMusic() {
-      const a = actx(); if (!a || seq) return;
-      seqStep = 0; seqNext = a.currentTime + 0.05;
-      seq = setInterval(() => {
-        const a2 = actx(); if (!a2) return;
-        while (seqNext < a2.currentTime + 0.3) { musicStep(seqStep, Math.max(0, seqNext - a2.currentTime)); seqStep = (seqStep + 1) % 16; seqNext += 0.125; }
-      }, 80);
+    // the dance party band: an 8-bar song at 120 bpm, scheduled a beat ahead. Each instrument
+    // switches its own part on or off; the song keeps its place so everything stays in time
+    setPart(part, on) {
+      const a = actx(); if (!a) return;
+      if (on) joining.add(part); else { joining.delete(part); layers[part] = false; }
+      const any = joining.size > 0 || Object.values(layers).some(Boolean);
+      if (any && !seq) {
+        seqStep = 0; seqNext = a.currentTime + 0.05;
+        seq = setInterval(() => {
+          const a2 = actx(); if (!a2) return;
+          while (seqNext < a2.currentTime + 0.3) { musicStep(seqStep, Math.max(0, seqNext - a2.currentTime)); seqStep = (seqStep + 1) % SONG_STEPS; seqNext += 0.125; }
+        }, 80);
+      }
+      if (part === 'chords' && !on) fadePads();
+      if (!any) this.stopMusic();
     },
-    stopMusic() { if (seq) clearInterval(seq); seq = null; },
-    get muted() { return muted; }, set muted(v) { muted = v; store.set('muted', v ? '1' : '0'); }
+    stopMusic() { for (const k in layers) layers[k] = false; joining.clear(); if (seq) clearInterval(seq); seq = null; fadePads(); },
+    get muted() { return muted; }, set muted(v) { muted = v; store.set('muted', v ? '1' : '0'); if (v) fadePads(); else if (layers.chords && seq) { newPadBus(); joinChords(seqStep, Math.max(0, seqNext - ac.currentTime)); } }
   };
 })();
 
@@ -1182,7 +1234,7 @@ function endPointer(e) {
     const x = clamp(w.x, MARGIN, WORLD.w - MARGIN), y = clamp(w.y, MARGIN, WORLD.h - MARGIN);
     if (tool === 'treat') dropTreat(x, y);
     else if (tool === 'ball') throwBall(x, y);
-    else if (tool === 'dance') placeBoombox(x, y);
+    else if (tool === 'dance') placeInstrument(x, y);
   }
   // a plain click/tap on the grass with the hand (no drag, no pinch) also counts as using it
   if (gesture && gesture.type === 'pan' && !pt.moved && pointers.size === 1 && tool === 'hand') releaseFormation();
@@ -1486,19 +1538,13 @@ function render() {
     }
     ctx.globalAlpha = 1;
   }
-  // boombox
-  if (boombox.on) {
-    const pulse = 1 + 0.07 * Math.abs(Math.sin(boombox.beat * Math.PI));
-    ctx.fillStyle = 'rgba(0,0,0,0.18)'; ctx.beginPath(); ctx.ellipse(boombox.x, boombox.y + 11, 18, 5, 0, 0, TAU); ctx.fill();
-    ctx.save(); ctx.translate(boombox.x, boombox.y); ctx.scale(pulse, pulse);
-    ctx.fillStyle = '#37474f'; ctx.fillRect(-17, -10, 34, 20);
-    ctx.strokeStyle = '#263238'; ctx.lineWidth = 1.5; ctx.strokeRect(-17, -10, 34, 20);
-    ctx.beginPath(); ctx.arc(0, -10, 8, Math.PI, TAU); ctx.stroke();                   // handle
-    for (const sx of [-9, 9]) {
-      ctx.fillStyle = '#90a4ae'; ctx.beginPath(); ctx.arc(sx, 1, 6.2, 0, TAU); ctx.fill();
-      ctx.fillStyle = '#263238'; ctx.beginPath(); ctx.arc(sx, 1, 3.5 * pulse, 0, TAU); ctx.fill();
-    }
-    ctx.fillStyle = '#80cbc4'; ctx.fillRect(-4, -8, 8, 4);                            // cassette window
+  // the band
+  for (const b of band) {
+    const pulse = 1 + 0.07 * Math.abs(Math.sin(party.beat * Math.PI));
+    ctx.fillStyle = 'rgba(0,0,0,0.18)'; ctx.beginPath(); ctx.ellipse(b.x, b.y + 16, 20, 6, 0, 0, TAU); ctx.fill();
+    ctx.save(); ctx.translate(b.x, b.y); ctx.scale(pulse, pulse);
+    ctx.font = '36px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#000'; ctx.fillText(b.ch, 0, 0);   // emoji take their opacity from fillStyle
     ctx.restore();
   }
   // ball shadow
@@ -1667,7 +1713,7 @@ function frame(t) {
   rebuildGrid();
   separate();
   updateBall(dt);
-  updateBoombox(dt);
+  updateBand(dt);
   updateMesses(dt);
   updateParts(dt);
   if (now < fireworksUntil && Math.random() < dt * 2.5) burstConfetti(rnd(W * 0.15, W * 0.85), rnd(H * 0.15, H * 0.5), 60, 400);
@@ -1704,5 +1750,5 @@ if (params.get('intro') === '0') {
 }
 requestAnimationFrame(frame);
 // small debug handle (used by the headless tests)
-window.TKP = { puppies, cam, camT, startFormation, endFormation, dropTreat, throwBall, LOOKS, POSES, drawPuppy, setTool, doTrick, placeBoombox, boombox, messes, showCard, get stats() { return stats; }, get frameCost() { return frameCost; }, get petted() { return pettedCount; }, get ball() { return ball; }, get formation() { return formation; } };
+window.TKP = { puppies, cam, camT, startFormation, endFormation, dropTreat, throwBall, LOOKS, POSES, drawPuppy, setTool, doTrick, placeInstrument, band, messes, showCard, get stats() { return stats; }, get frameCost() { return frameCost; }, get petted() { return pettedCount; }, get ball() { return ball; }, get formation() { return formation; } };
 })();
