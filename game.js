@@ -2045,6 +2045,7 @@ function render() {
   }
   // ball
   ctx.setTransform(dpr * z, 0, 0, dpr * z, dpr * ox, dpr * oy);
+  if (stage) drawBackdrop(stage);
   if (stage && !dots) for (const q of stage.seats) drawInstrument(q);
   if (ball.active) {
     const by = ball.y - ball.z;
@@ -2107,14 +2108,6 @@ function drawTutu(g) {   // in the puppy's own units, tiptoe pose
 function drawStage(s) {
   const g = GENRES[s.genre], th = g.theme, L = s.x - STAGE_W / 2, T = s.y - STAGE_H / 2, B = s.y + STAGE_H / 2;
   ctx.fillStyle = 'rgba(0,0,0,0.2)'; ctx.fillRect(L + 8, T - CURTAIN_H + 10, STAGE_W, CURTAIN_H + STAGE_H + 16);
-  // the backdrop, with folds, and the kind of music across it
-  ctx.fillStyle = th.curtain; ctx.fillRect(L, T - CURTAIN_H, STAGE_W, CURTAIN_H);
-  ctx.fillStyle = th.fold; for (let x = L + 10; x < L + STAGE_W - 4; x += 22) ctx.fillRect(x, T - CURTAIN_H + 12, 4, CURTAIN_H - 12);
-  ctx.fillStyle = th.trim; ctx.fillRect(L - 6, T - CURTAIN_H - 4, STAGE_W + 12, 12);
-  ctx.font = '700 24px Fredoka, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.lineWidth = 5; ctx.strokeStyle = 'rgba(0,0,0,0.45)'; ctx.fillStyle = th.text;
-  const label = g.name + (sfx.mode === 'minor' ? ' · minor' : '');
-  ctx.strokeText(label, s.x, T - CURTAIN_H / 2 + 5); ctx.fillText(label, s.x, T - CURTAIN_H / 2 + 5);
   // the floor boards, the front edge, and footlights that blink on the beat
   ctx.fillStyle = th.floor; ctx.fillRect(L, T, STAGE_W, STAGE_H);
   ctx.strokeStyle = th.plank; ctx.lineWidth = 1.5; ctx.beginPath();
@@ -2135,6 +2128,17 @@ function drawStage(s) {
     }
     ctx.setLineDash([]);
   }
+}
+// the backdrop goes on after the puppies, so anyone walking round the back of the stage passes behind it
+function drawBackdrop(s) {
+  const g = GENRES[s.genre], th = g.theme, L = s.x - STAGE_W / 2, T = s.y - STAGE_H / 2;
+  ctx.fillStyle = th.curtain; ctx.fillRect(L, T - CURTAIN_H, STAGE_W, CURTAIN_H);
+  ctx.fillStyle = th.fold; for (let x = L + 10; x < L + STAGE_W - 4; x += 22) ctx.fillRect(x, T - CURTAIN_H + 12, 4, CURTAIN_H - 12);
+  ctx.fillStyle = th.trim; ctx.fillRect(L - 6, T - CURTAIN_H - 4, STAGE_W + 12, 12);
+  ctx.font = '700 24px Fredoka, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.lineWidth = 5; ctx.strokeStyle = 'rgba(0,0,0,0.45)'; ctx.fillStyle = th.text;
+  const label = g.name + (sfx.mode === 'minor' ? ' · minor' : '');
+  ctx.strokeText(label, s.x, T - CURTAIN_H / 2 + 5); ctx.fillText(label, s.x, T - CURTAIN_H / 2 + 5);
 }
 function drawInstrument(q) {
   ctx.globalAlpha = q.ready ? 1 : 0.5;   // see-through until its player arrives
